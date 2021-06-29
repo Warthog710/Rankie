@@ -129,5 +129,6 @@ dmypy.json
 .pyre/
 
 # Folders
-.vscode
-config
+.vscode/
+config/
+logs/
