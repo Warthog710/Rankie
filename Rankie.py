@@ -21,7 +21,7 @@ INFINITY = 99999
 if not os.path.exists('./logs'):
     os.mkdir('./logs')
 
-logging.basicConfig(filename='./logs/rankie.log', encoding='utf-8', level = logging.INFO, format='%(asctime)s: %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+logging.basicConfig(filename='./logs/rankie.log', level = logging.INFO, format='%(asctime)s: %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
 # Make sure the folder exists
 if not os.path.exists('./config'):
