@@ -1,10 +1,11 @@
+import os
 import json
 import discord
 import aiohttp
+import logging
 
 from discord.ext import commands
 
-#TODO: Add a logger
 #TODO: Change bot status once every 24 hrs to something funny
 #TODO: Create custom help with permission intelligence (still lacking permission intelligence)
 
@@ -16,17 +17,39 @@ DEFAULT_PREFIX = '?'
 #? The top cap for scores. Lets hope an IO score can never be greater than 99999
 INFINITY = 99999
 
+# Setup logging
+if not os.path.exists('./logs'):
+    os.mkdir('./logs')
+
+logging.basicConfig(filename='./logs/rankie.log', encoding='utf-8', level = logging.INFO, format='%(asctime)s: %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+# Make sure the folder exists
+if not os.path.exists('./config'):
+    os.mkdir('./config')    
+
 # Load config
-with open('./config/config.json', 'r') as config:
-    config = json.loads(config.read())
+try:
+    with open('./config/config.json', 'r') as config:
+        config = json.loads(config.read())
+except Exception as e:
+    logging.error(f'./config/config.json was not found: {e}')
+    config = {}
 
 # Load prefixes
-with open('./config/prefixes.json', 'r') as prefixes:
-    prefixes = json.loads(prefixes.read())
+try:
+    with open('./config/prefixes.json', 'r') as prefixes:
+        prefixes = json.loads(prefixes.read())
+except Exception as e:
+    logging.warning(f'./config/prefixes.json was not found! prefixes will be set to an empty dictionary: {e}')
+    prefixes = {}
 
 # Load roles
-with open('./config/roles.json', 'r') as roles:
-    roles = json.loads(roles.read())
+try:
+    with open('./config/roles.json', 'r') as roles:
+        roles = json.loads(roles.read())
+except Exception as e:
+    logging.warning(f'./config/roles.json was not found! roles will be set to an empty dictionary: {e}')
+    roles = {}
 
 #? CUSTOM FUNCTIONS
 
@@ -125,7 +148,7 @@ async def add_role(ctx, role, IO_range):
             await ctx.message.reply(f'The rank or IO range passed already exists.')
             return
     except Exception as e:
-        print(e)
+        logging.info(f'Failed to recognize the command for add_role. role={role} IO_range={IO_range}: {e}')
         await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{prefixes[str(ctx.guild.id)]}help setRank**')
         return
 
@@ -161,11 +184,12 @@ rankie = commands.Bot(command_prefix=get_prefix, help_command=None)
 
 @rankie.event
 async def on_ready():
+    logging.info('Rankie successfully started!')
     print('Rankie Successfully Started!')
 
 @rankie.event
 async def on_command_error(ctx, error):
-    print(error)
+    logging.info(f'Unspecified command error occurred: {error}')
     await ctx.message.reply(f'I didn\'t recognize that command. Try asking me **{prefixes[str(ctx.guild.id)]}help**')
 
 @rankie.event
@@ -192,7 +216,7 @@ async def assign_rank(ctx, *cmd):
             mythic_score = resp_json['mythic_plus_scores_by_season'][0]['scores']['all']
 
     except Exception as e:
-        print(e)
+        logging.info(f'Failed to recognize the command for assignRank. Cmd={cmd}: {e}')
         await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{prefixes[str(ctx.guild.id)]}help assignRank**')
         return
 
@@ -232,7 +256,7 @@ async def assign_rank(ctx, *cmd):
         await ctx.message.author.add_roles(discord.utils.get(ctx.message.guild.roles, id=rank_id))
     except Exception as e:
         await ctx.message.reply('Failed to assign the correct rank. This is likely due to a permissions issue. Please make sure Rankie has the ability to assign and delete roles.')
-        print(e)
+        logging.warning(f'Failed to delete/assign a new role: {e}')
         return    
 
     await ctx.message.reply(f'You have been assigned {discord.utils.get(ctx.message.guild.roles, id=rank_id)}. This rank is for players with an IO score of {dict(sorted_ranks)[rank_id]}.')     
@@ -249,7 +273,7 @@ async def profile(ctx, *cmd):
         else:
             profile_url = resp_json['profile_url']
     except Exception as e:
-        print(e)
+        logging.info(f'Failed to recognize the command for profile. Cmd={cmd}: {e}')
         await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{prefixes[str(ctx.guild.id)]}help profile**')
         return
 
@@ -276,7 +300,7 @@ async def set_rank(ctx, IO_range, *rank_name):
         try:
             role = await ctx.guild.create_role(name=rank_name)
         except Exception as e:
-            print(e)
+            logging.warning(f'Failed to create a new rank in setRank: {e}')
             await ctx.message.reply('Failed to create the requested rank. This is likely due to a permissions issue. Please make sure Rankie has the ability to create roles or manually create the role before setting the rank.')
             return
 
@@ -314,7 +338,7 @@ async def delete_rank(ctx, *rank_name):
     try:
         await rank.delete()
     except Exception as e:
-        print(e)
+        logging.warning(f'Failed to delete a rank in deleteRank: {e}')
         await ctx.message.reply(f'Successfully deleted the rank {rank_name} internally. However, failed to delete the role on the server. This is likely a permissions issue. Please make sure Rankie has the ability to delete roles or manually delete the role.')
         return
 
@@ -323,15 +347,21 @@ async def delete_rank(ctx, *rank_name):
 @rankie.command(name='listRanks', aliases=['lr'])
 async def list_ranks(ctx):
     sorted_ranks = get_sorted_ranks(ctx.guild.id)
-    msg = f'Currently set ranks:\n```{"Rank Name":<20}\t{"IO Range":<20}\n'
-    msg += f'{"---------":<20}\t{"--------":<20}\n'
+    if sorted_ranks != None:
+        if len(sorted_ranks) > 0:
+            msg = f'Currently set ranks:\n```{"Rank Name":<20}\t{"IO Range":<20}\n'
+            msg += f'{"---------":<20}\t{"--------":<20}\n'
 
-    for item in sorted_ranks:
-        rank_name = str(discord.utils.get(ctx.message.guild.roles, id=item[0]))
-        msg += f'{rank_name:<20}\t{item[1]:<20}\n'
+            for item in sorted_ranks:
+                rank_name = str(discord.utils.get(ctx.message.guild.roles, id=item[0]))
+                msg += f'{rank_name:<20}\t{item[1]:<20}\n'
 
-    msg += '```'
-    await ctx.message.reply(msg)
+            msg += '```'
+            await ctx.message.reply(msg)
+            return
+
+    await ctx.message.reply(f'I could not find any set ranks for this server. Please try setting a rank before using this command.')
+    logging.info(f'Failed to find any roles in listRanks for guild {ctx.guild.id}')
 
 @rankie.command(name='setPrefix', aliases=['sp'])
 @commands.has_permissions(manage_guild=True)
