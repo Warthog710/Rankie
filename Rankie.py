@@ -407,7 +407,7 @@ async def help(ctx, *cmd):
         await ctx.message.reply(msg)
     else:
         msg = 'Available Commands:```'
-        msg += f'{prefix}assignRole <region>/<realm>/<name>\n\n'
+        msg += f'{prefix}assignRank <region>/<realm>/<name>\n\n'
         msg += f'{prefix}profile <region>/<realm>/<name>\n\n'
         msg += f'{prefix}listRanks\n\n'
         msg += f'{prefix}setRank <IO_Range> [Rank Name] - (Requires Management Role)\n\n'
