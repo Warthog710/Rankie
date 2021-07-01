@@ -29,6 +29,8 @@ Roles can be customized on a per server basis. Only users with the ability to ma
  * ``?setPrefix <desired_prefix>``:
     * Sets the prefix that Rankie uses for this server. This prefix must be a single character.
 
+ * ``?setSeason <desired_season>``:
+   * Sets the season that Rankie will use when it queries Raider IO for a score. Only *current* and *previous* are supported.
 #### Running Rankie:
 Rankie can be added to your server by following this URL: <a href="https://top.gg/bot/858460009284894750">Rankie</a><br><br>
 If you would like to personally host an instance of Rankie, you are free to do so! For Rankie to work, a config.json file must be present in a config folder with a Discord bot token. A token can be obtained through Discord's development portal. The contents of the file should look like this:
