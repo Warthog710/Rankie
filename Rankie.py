@@ -7,7 +7,6 @@ import logging
 from discord.ext import commands
 
 #TODO: Change bot status once every 24 hrs to something funny
-#TODO: Create custom help with permission intelligence (still lacking permission intelligence)
 
 #? Permissions required: manage_roles, 
 
@@ -50,6 +49,14 @@ try:
 except Exception as e:
     logging.warning(f'./config/roles.json was not found! roles will be set to an empty dictionary: {e}')
     roles = {}
+
+# Load season
+try:
+    with open('./config/season.json', 'r') as season:
+        season = json.loads(season.read())
+except Exception as e:
+    logging.warning(f'./config/season.json was not found! season will be set to an empty dictionary: {e}')
+    season = {}
 
 #? CUSTOM FUNCTIONS
 
@@ -103,20 +110,22 @@ def parse_IO_range(IO_range):
         return range(int(temp_min), int(temp_max))
 
 # Determine if a valid IO range overlaps with an existing range
-def detect_overlap(guild_id, IO_range, role_id):
+def detect_overlap(guild_id, IO_range, rank):
     # If roles exist for this guild
     if str(guild_id) in roles:
         existing_roles = roles[str(guild_id)]
         IO_range = parse_IO_range(IO_range)
 
-        for role in existing_roles:
-            # If the role id matches, a role of that name already exists
-            if role[0] == role_id:
-                return False
+        # Determine if a name overlaps
+        if rank != None:
+            for role in existing_roles:
+                if role[0] == rank.id:
+                    return False
 
-            # If the IO range overlaps, it is invalid
+        # Determine if a range overlaps
+        for role in existing_roles:
             saved_range = parse_IO_range(role[1])
-            if max(IO_range) >= min(saved_range) and min(saved_range) >= max(IO_range):
+            if max(IO_range) >= min(saved_range) and max(saved_range) >= min(IO_range):
                 return False
 
         # If no overlap was detected, the range is good.
@@ -140,18 +149,20 @@ def get_sorted_ranks(guild_id):
     else:
         return None
 
-async def add_role(ctx, role, IO_range):
-    # Verify the passed IO range is valid
-    try:
-        # Verify the passed IO range does not overlap with an existing saved range
-        if not detect_overlap(ctx.guild.id, IO_range, role.id):
-            await ctx.message.reply(f'The rank or IO range passed already exists.')
-            return
-    except Exception as e:
-        logging.info(f'Failed to recognize the command for add_role. role={role} IO_range={IO_range}: {e}')
-        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{prefixes[str(ctx.guild.id)]}help setRank**')
-        return
+# Given a guild id, return its season setting (previous or current)
+def get_season(guild_id):
+    if str(guild_id) in season:
+        return season[str(guild_id)]
+    else:
+        season[str(guild_id)] = 'current'
 
+        # Dump season to disk
+        with open('./config/season.json', 'w') as temp:
+            json.dump(season, temp, indent=4)
+
+        return 'current'    
+
+async def add_role(ctx, role, IO_range):
     # Add the role
     if str(ctx.guild.id) in roles:
         roles[str(ctx.guild.id)].append((role.id, IO_range))
@@ -166,7 +177,7 @@ async def add_role(ctx, role, IO_range):
 
 async def raider_io_query(ctx, region, realm, name):
     async with aiohttp.ClientSession() as session:
-        async with session.get(f'https://raider.io/api/v1/characters/profile?region={region}&realm={realm}&name={name}&fields=mythic_plus_scores_by_season%3Acurrent') as response:
+        async with session.get(f'https://raider.io/api/v1/characters/profile?region={region}&realm={realm}&name={name}&fields=mythic_plus_scores_by_season%3A{get_season(ctx.guild.id)}') as response:
             if response.status == 200:
                 resp_json = await response.json()
                 return resp_json
@@ -190,15 +201,44 @@ async def on_ready():
 @rankie.event
 async def on_command_error(ctx, error):
     logging.info(f'Unspecified command error occurred: {error}')
-    await ctx.message.reply(f'I didn\'t recognize that command. Try asking me **{prefixes[str(ctx.guild.id)]}help**')
+    await ctx.message.reply(f'I didn\'t recognize that command. Try asking me **{get_prefix(None, ctx.message)}help**')
 
 @rankie.event
 async def on_guild_join(guild):
+    logging.info(f'Rankie joined {guild.id}')
     prefixes[str(guild.id)] = DEFAULT_PREFIX
 
     # Dump the new prefix into the JSON
     with open('./config/prefixes.json', 'w') as temp:
         json.dump(prefixes, temp, indent=4)
+
+@rankie.event
+async def on_guild_remove(guild):
+    logging.info(f'Rankie left {guild.id}')
+
+    # Clean up prefixes
+    if str(guild.id) in prefixes:
+        del prefixes[str(guild.id)]
+
+        # Dump the new prefix into the JSON
+        with open('./config/prefixes.json', 'w') as temp:
+            json.dump(prefixes, temp, indent=4)
+
+    # Clean up roles
+    if str(guild.id) in roles:
+        del roles[str(guild.id)]
+
+        # Dump the new prefix into the JSON
+        with open('./config/roles.json', 'w') as temp:
+            json.dump(roles, temp, indent=4)
+
+    # Clean up season
+    if str(guild.id) in season:
+        del season[str(guild.id)]
+
+        # Dump the new prefix into the JSON
+        with open('./config/season.json', 'w') as temp:
+            json.dump(season, temp, indent=4)
 
 #? BOT COMMANDS
 
@@ -217,7 +257,7 @@ async def assign_rank(ctx, *cmd):
 
     except Exception as e:
         logging.info(f'Failed to recognize the command for assignRank. Cmd={cmd}: {e}')
-        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{prefixes[str(ctx.guild.id)]}help assignRank**')
+        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{get_prefix(None, ctx.message)}help assignRank**')
         return
 
     # Get a sorted list of ranks
@@ -274,7 +314,7 @@ async def profile(ctx, *cmd):
             profile_url = resp_json['profile_url']
     except Exception as e:
         logging.info(f'Failed to recognize the command for profile. Cmd={cmd}: {e}')
-        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{prefixes[str(ctx.guild.id)]}help profile**')
+        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{get_prefix(None, ctx.message)}help profile**')
         return
 
     await ctx.message.reply(profile_url)
@@ -282,39 +322,48 @@ async def profile(ctx, *cmd):
 @rankie.command(name='setRank', aliases=['sr'])
 @commands.has_permissions(manage_guild=True)
 async def set_rank(ctx, IO_range, *rank_name):
+    rank_name = ' '.join(rank_name)
 
-    # Capitalize all items
-    rank_name = ' '.join(rank_name).title()
-
-    # Determine if IO range is valid
-    if not check_IO_range(IO_range):
-        await ctx.message.reply(f'The IO range {IO_range} is invalid.')
+    # If the rank_name is nothing, return an error
+    if len(rank_name) <= 0:
+        await ctx.message.reply(f'The name for the rank must be greater than 0 characters.')
         return
 
-    # Look at existing roles in the guild
-    check_for_dupe = discord.utils.get(ctx.message.guild.roles, name=rank_name)
+    rank = discord.utils.get(ctx.message.guild.roles, name=rank_name)
+
+    # Verify IO_range
+    try:
+        # Determine if a valid range was sent
+        if not check_IO_range(IO_range):
+            await ctx.message.reply(f'The IO range {IO_range} is invalid.')
+            return
+
+        # Verify the passed IO range does not overlap with an existing saved range
+        if not detect_overlap(ctx.guild.id, IO_range, rank):
+            await ctx.message.reply(f'The rank or IO range passed already exists.')
+            return
+    except Exception as e:
+        logging.info(f'Failed to recognize the command for add_role. role={rank} IO_range={IO_range}: {e}')
+        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{get_prefix(None, ctx.message)}help setRank**')
+        return
 
     # If check for dupe is false, the role does not exist
-    if check_for_dupe == None:
+    if rank == None:
         # Attemp to create the role
         try:
-            role = await ctx.guild.create_role(name=rank_name)
+            rank = await ctx.guild.create_role(name=rank_name)
         except Exception as e:
             logging.warning(f'Failed to create a new rank in setRank: {e}')
             await ctx.message.reply('Failed to create the requested rank. This is likely due to a permissions issue. Please make sure Rankie has the ability to create roles or manually create the role before setting the rank.')
             return
 
-    # Else the role already exists
-    else:
-        role = check_for_dupe
-
     # Add the role
-    await add_role(ctx, role, IO_range)
+    await add_role(ctx, rank, IO_range)
 
 @rankie.command(name='deleteRank', aliases=['dr'])
 @commands.has_permissions(manage_guild=True)
 async def delete_rank(ctx, *rank_name):
-    rank_name = ' '.join(rank_name).title()
+    rank_name = ' '.join(rank_name)
 
     # If the guild ID does not exist in roles, no ranks can be deleted since none have been sent
     if not str(ctx.guild.id) in roles:
@@ -381,9 +430,35 @@ async def set_prefix(ctx, desired_prefix):
     else:
         await ctx.message.reply(f'Desired prefix was invalid. Prefix must be a single character.')
 
+@rankie.command(name='setSeason', aliases=['ss'])
+@commands.has_permissions(manage_guild=True)
+async def set_season(ctx, desired_season):
+    desired_season = str(desired_season).lower()
+
+    if desired_season == 'current':
+        season[str(ctx.guild.id)] = 'current'
+        
+        # Dump the new prefix into the JSON
+        with open('./config/season.json', 'w') as temp:
+            json.dump(season, temp, indent=4)
+
+        await ctx.message.reply('The __current__ season will now be used for scores.')
+
+    elif desired_season == 'previous':
+        season[str(ctx.guild.id)] = 'previous'
+
+        # Dump the new prefix into the JSON
+        with open('./config/season.json', 'w') as temp:
+            json.dump(season, temp, indent=4)
+
+        await ctx.message.reply('The __previous__ season will now be used for scores.')
+
+    else:
+        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{get_prefix(None, ctx.message)}help setSeason**')
+
 @rankie.command(name='help', aliases=['h'])
 async def help(ctx, *cmd):
-    prefix = prefixes[str(ctx.guild.id)]
+    prefix = get_prefix(None, ctx.message)
     cmd = ' '.join(cmd)
     cmd = cmd.upper()
 
@@ -396,23 +471,34 @@ async def help(ctx, *cmd):
     elif 'LISTRANKS' == cmd or 'LR' == cmd:
         msg = f'```Lists all the currently set ranks for this server.\n\nUsage: {prefix}listRanks\n\nAliases: {prefix}lr```'
         await ctx.message.reply(msg)
-    elif 'SETRANK' == cmd or 'SR' == cmd:
+    elif ('SETRANK' == cmd or 'SR' == cmd) and ctx.message.author.guild_permissions.manage_guild:
         msg = f'```Adds a rank attached to a specified IO range. When a member asks to be assigned a rank and their IO score is within this range, the associated rank will be assigned.\n\nUsage: {prefix}setRank <IO_Range> [Rank Name]\n\nAliases: {prefix}sr\n\nExample: {prefix}setRank 0-1000 Baby\nExample: {prefix}setRank 1000+ Bigger Baby\n\nNote, the IO range passed or the rank name cannot overlap with existing managed ranks. In addition, the end value of a range is exclusive. This means that the range 0-1000 maxes out at 999.```'
         await ctx.message.reply(msg)
-    elif 'DELETERANK' == cmd or 'DR' == cmd:
+    elif ('DELETERANK' == cmd or 'DR' == cmd) and ctx.message.author.guild_permissions.manage_guild:
         msg = f'```Deletes a rank that already exists.\n\nUsage: {prefix}deleteRank [Rank Name]\n\nAliases: {prefix}dr\n\nExample: {prefix}deleteRank Bigger Baby```'
         await ctx.message.reply(msg)
-    elif 'SETPREFIX' == cmd or 'SP' == cmd:
+    elif ('SETPREFIX' == cmd or 'SP' == cmd) and ctx.message.author.guild_permissions.manage_guild:
         msg = f'```Sets the prefix that Rankie uses for this server.\n\nUsage: {prefix}setPrefix <desired_prefix>\n\nAliases: {prefix}sp\n\nExample: {prefix}setPrefix !```'
         await ctx.message.reply(msg)
+    elif ('SETSEASON' == cmd or 'SS' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+        msg = f'```Sets the current season that will be used to assign ranks.\n\nUsage: {prefix}setSeason <desired_season>\n\nAliases: {prefix}ss\n\nOnly "current" and "previous" are supported as inputs for this command.```'
+        await ctx.message.reply(msg)
     else:
-        msg = 'Available Commands:```'
+        msg = 'Available Commands:\n```'
         msg += f'{prefix}assignRank <region>/<realm>/<name>\n\n'
         msg += f'{prefix}profile <region>/<realm>/<name>\n\n'
         msg += f'{prefix}listRanks\n\n'
-        msg += f'{prefix}setRank <IO_Range> [Rank Name] - (Requires Management Role)\n\n'
-        msg += f'{prefix}deleteRank [Rank Name] - (Requires Management Role)\n\n'
-        msg += f'{prefix}setPrefix <desired_prefix> - (Requires Management Role)\n\n```'
+
+        # If the user has manage_guild permissions, give them info on these commands
+        if ctx.message.author.guild_permissions.manage_guild:
+            msg += f'{prefix}setRank <IO_Range> [Rank Name] - (Requires Management Role)\n\n'
+            msg += f'{prefix}deleteRank [Rank Name] - (Requires Management Role)\n\n'
+            msg += f'{prefix}setPrefix <desired_prefix> - (Requires Management Role)\n\n'
+            msg += f'{prefix}setSeason <desired_season> - (Requires Management Role)\n\n```'
+            msg += f'\nRankie is currently using the __{get_season(ctx.guild.id)}__ season to calculate its scores for ranks.\n'
+        else:
+            msg += '```'
+
         msg += f'\nFor more information on a command, type ``{prefix}help <command_name>``'
         await ctx.message.reply(msg)
 
