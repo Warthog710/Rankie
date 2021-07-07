@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 #? Default prefix for Rankie
 DEFAULT_PREFIX = '?'
 
-#? The top cap for scores. Lets hope an IO score can never be greater than 99999
+#? The top cap for scores. Lets hope a mythic+ score can never be greater than 99999
 INFINITY = 99999
 
 # Setup logging
@@ -395,7 +395,7 @@ async def assign_rank(ctx, *cmd):
         logging.warning(f'Failed to delete/assign a new role: {e}')
         return    
 
-    await ctx.message.reply(f'You have been assigned {discord.utils.get(ctx.message.guild.roles, id=rank_id)}. This rank is for players with an IO score of {dict(sorted_ranks)[rank_id]}.')     
+    await ctx.message.reply(f'You have been assigned {discord.utils.get(ctx.message.guild.roles, id=rank_id)}. This rank is for players with a mythic+ score of {dict(sorted_ranks)[rank_id]}.')     
 
 @rankie.command(name='profile', aliases=['p'])
 async def profile(ctx, *cmd):
@@ -750,7 +750,7 @@ async def help(ctx, *cmd):
     cmd = cmd.upper()
 
     if 'ASSIGNRANK' == cmd or 'AR' == cmd:
-        msg = f'```Assigns a rank based on your current Raider.io score.\n\nUsage: {prefix}assignRank <region>/<realm>/<name>\n\nAliases: {prefix}ar\n\nExample: {prefix}assignRank us/aggramar/sapphirre```'
+        msg = f'```Assigns a rank based on your current Raider.io mythic+ score.\n\nUsage: {prefix}assignRank <region>/<realm>/<name>\n\nAliases: {prefix}ar\n\nExample: {prefix}assignRank us/aggramar/sapphirre```'
         await ctx.message.reply(msg)
     elif 'PROFILE' == cmd or 'P' == cmd:
         msg = f'```Return the URL for a characters Raider.io profile.\n\nUsage: {prefix}profile <region>/<realm>/<name>\n\nAliases: {prefix}p\n\nExample: {prefix}profile us/aggramar/sapphirre```'
@@ -759,7 +759,7 @@ async def help(ctx, *cmd):
         msg = f'```Lists all the currently set ranks for this server.\n\nUsage: {prefix}listRanks\n\nAliases: {prefix}lr```'
         await ctx.message.reply(msg)
     elif ('SETRANK' == cmd or 'SR' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-        msg = f'```Adds a rank attached to a specified IO range. When a member asks to be assigned a rank and their IO score is within this range, the associated rank will be assigned.\n\nUsage: {prefix}setRank <IO_Range> [Rank Name]\n\nAliases: {prefix}sr\n\nExample: {prefix}setRank 0-1000 Baby\nExample: {prefix}setRank 1000+ Bigger Baby\n\nNote, the IO range passed or the rank name cannot overlap with existing managed ranks. In addition, the end value of a range is exclusive. This means that the range 0-1000 maxes out at 999.```'
+        msg = f'```Adds a rank attached to a specified IO range. When a member asks to be assigned a rank and their mythic+ score is within this range, the associated rank will be assigned.\n\nUsage: {prefix}setRank <IO_Range> [Rank Name]\n\nAliases: {prefix}sr\n\nExample: {prefix}setRank 0-1000 Baby\nExample: {prefix}setRank 1000+ Bigger Baby\n\nNote, the IO range passed or the rank name cannot overlap with existing managed ranks. In addition, the end value of a range is exclusive. This means that the range 0-1000 maxes out at 999.```'
         await ctx.message.reply(msg)
     elif ('DELETERANK' == cmd or 'DR' == cmd) and ctx.message.author.guild_permissions.manage_guild:
         msg = f'```Deletes a rank that already exists.\n\nUsage: {prefix}deleteRank [Rank Name]\n\nAliases: {prefix}dr\n\nExample: {prefix}deleteRank Bigger Baby```'
