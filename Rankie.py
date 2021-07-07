@@ -231,7 +231,7 @@ async def raider_io_query(ctx, region, realm, name):
                 return None
 
 # Create the bot
-rankie = commands.Bot(command_prefix=get_prefix, help_command=None)
+rankie = commands.Bot(command_prefix=get_prefix, help_command=None, case_insensitive=True)
 
 #? BOT TASKS
 
