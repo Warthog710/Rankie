@@ -564,7 +564,7 @@ async def set_managed_channel(ctx, channel_name, frequency):
         return
 
     # Only allow text channels
-    if channel.type != 'test':
+    if str(channel.type) == 'voice' or str(channel.type) == 'store' or str(channel.type) == 'stage_voice':
         await ctx.message.reply(f'Only text channels can be managed.')
         return
 
