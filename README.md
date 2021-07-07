@@ -3,7 +3,7 @@
 #### Description:
 Rankie is a Discord bot that is integrated with <a href="https://raider.io/">Raider.io</a>. It allows server owners to create custom roles around IO scores. For example, I can create a role for scores ranging from *0-1000* called *Test*. When a user requests to be assigned a role, it will look up the passed character on Raider IO and assign the user the appropriate role. If they qualify for no existing roles, they will be informed of that case.<br><br>
 Roles can be customized on a per server basis. Only users with the ability to manage the server can set the roles. In addition, the prefix that Rankie uses on the server can be changed by server managers. By default this is set to *?*<br><br>
-***Rankie requires the ability to create, delete, and assign roles.***
+*Rankie requires the permissions **manage roles**, **manage messages**, & **read message history***
 
 **Available Regions:** US, EU, TW, KR, CN<br>
 **Available Realms:** <a href="https://worldofwarcraft.com/en-us/game/status/us">Official List</a>
@@ -50,7 +50,7 @@ Roles can be customized on a per server basis. Only users with the ability to ma
  * ``?listSavedMessages <channel_name>``:
    * Lists all the saved messages for a managed channel on the server the command originates.
 #### Running Rankie:
-Rankie can be added to your server by following this URL: <a href="https://top.gg/bot/858460009284894750">Rankie</a><br><br>
+Rankie can be invited to your server by clicking on this link: <a href="https://discord.com/oauth2/authorize?client_id=858460009284894750&scope=bot&permissions=268509184">Rankie</a><br><br>
 If you would like to personally host an instance of Rankie, you are free to do so! For Rankie to work, a config.json file must be present in a config folder with a Discord bot token. A token can be obtained through Discord's development portal. The contents of the file should look like this:
 ```
 {
