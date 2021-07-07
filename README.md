@@ -31,6 +31,24 @@ Roles can be customized on a per server basis. Only users with the ability to ma
 
  * ``?setSeason <desired_season>``:
    * Sets the season that Rankie will use when it queries Raider IO for a score. Only *current* and *previous* are supported.
+
+ * ``?setManagedChannel <channel_name> <frequency>``:
+   * Sets a text channel to be managed. A managed channel will have its messages deleted periodically at a defined frequency. Only *hourly* and *daily* are supported frequencies.
+
+ * ``?deleteManagedChannel <channel_name>``:
+   * Removes a managed channel from being managed. This channel will no longer have its messages periodically deleted at the previously requested frequency.
+
+ * ``?setSavedMessage <channel_name> <message_id>``:
+   * Sets a saved message in a managed channel. A saved message will not be deleted when performing channel management.
+
+ * ``?deleteSavedMessage <channel_name> <message_id>``:
+   * Removes a saved message in a managed channel. This message will no longer be saved when performing channel management.
+
+ * ``?listManagedChannels``:
+   * Lists all the current channels being managed by Rankie on the server the command originates.
+
+ * ``?listSavedMessages <channel_name>``:
+   * Lists all the saved messages for a managed channel on the server the command originates.
 #### Running Rankie:
 Rankie can be added to your server by following this URL: <a href="https://top.gg/bot/858460009284894750">Rankie</a><br><br>
 If you would like to personally host an instance of Rankie, you are free to do so! For Rankie to work, a config.json file must be present in a config folder with a Discord bot token. A token can be obtained through Discord's development portal. The contents of the file should look like this:
