@@ -2,9 +2,11 @@ import os
 import json
 import discord
 import aiohttp
+import asyncio
 import logging
 
 from discord.ext import commands
+from datetime import datetime, timedelta
 
 #TODO: Change bot status once every 24 hrs to something funny
 
@@ -57,6 +59,22 @@ try:
 except Exception as e:
     logging.warning(f'./config/season.json was not found! season will be set to an empty dictionary: {e}')
     season = {}
+
+# Load managed guilds
+try:
+    with open('./config/managed_guilds.json', 'r') as managed_guilds:
+        managed_guilds = json.loads(managed_guilds.read())
+except Exception as e:
+    logging.warning(f'./config/managed_guilds.json was not found! managed_guilds will be set to an empty dictionary: {e}')
+    managed_guilds = {}
+
+# Load managed channels
+try:
+    with open('./config/managed_channels.json', 'r') as managed_channels:
+        managed_channels = json.loads(managed_channels.read())
+except Exception as e:
+    logging.warning(f'./config/managed_channels.json was not found! managed_channels will be set to an empty dictionary: {e}')
+    managed_channels = {}
 
 #? CUSTOM FUNCTIONS
 
@@ -160,7 +178,31 @@ def get_season(guild_id):
         with open('./config/season.json', 'w') as temp:
             json.dump(season, temp, indent=4)
 
-        return 'current'    
+        return 'current' 
+
+async def purge_channel(channel_id, reserved_messages):
+    # Attempt to fetch channel
+    try:
+        channel = await rankie.fetch_channel(channel_id)
+    except Exception as e:
+        logging.info(f'Failed to fetch managed channel {channel_id}: {e}')
+        return
+
+    # Attempt to delete the messsages
+    try:
+        async for message in channel.history():
+            if message.id in reserved_messages:
+                continue
+            else:
+                await message.delete()
+
+                # Discord rate limits you while deleting messages in this fashion. Sleeping for 1 second between deletions seems to resolve this
+                await asyncio.sleep(1)
+    except Exception as e:
+        logging.info(f'Failed to delete messages in managed channel {channel_id}: {e}')
+        await channel.send('Rankie attempted to manage this channel but failed. This is likely due to missing permissions. Please make sure Rankie has permission to __manage messages__ and __read message history__.')
+
+
 
 async def add_role(ctx, role, IO_range):
     # Add the role
@@ -190,6 +232,50 @@ async def raider_io_query(ctx, region, realm, name):
 
 # Create the bot
 rankie = commands.Bot(command_prefix=get_prefix, help_command=None)
+
+#? BOT TASKS
+
+async def hourly_management():
+    await rankie.wait_until_ready()
+
+    # Sleep until the next hour
+    next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
+    wait_seconds = (next_hour - datetime.now()).seconds
+    await asyncio.sleep(wait_seconds)
+
+    while not rankie.is_closed():
+        for guild_id in managed_guilds:
+            for channel_id in managed_guilds[str(guild_id)]:
+
+                # Do the thing
+                if managed_channels[str(channel_id)][0] == 'hourly':
+                    await purge_channel(channel_id, managed_channels[str(channel_id)][1])
+
+        # Sleep until the next hour
+        next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
+        wait_seconds = (next_hour - datetime.now()).seconds
+        await asyncio.sleep(wait_seconds)
+
+async def daily_management():
+    await rankie.wait_until_ready()
+
+    # Sleep until the next day
+    next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
+    wait_seconds = (next_day - datetime.now()).seconds
+    await asyncio.sleep(wait_seconds)
+
+    while not rankie.is_closed():
+        for guild_id in managed_guilds:
+            for channel_id in managed_guilds[str(guild_id)]:
+
+                # Do the thing
+                if managed_channels[str(channel_id)][0] == 'daily':
+                    await purge_channel(channel_id, managed_channels[str(channel_id)][1])
+
+        # Sleep until the next day
+        next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
+        wait_seconds = (next_day - datetime.now()).seconds
+        await asyncio.sleep(wait_seconds)
 
 #? BOT EVENTS
 
@@ -240,6 +326,15 @@ async def on_guild_remove(guild):
         with open('./config/season.json', 'w') as temp:
             json.dump(season, temp, indent=4)
 
+    # Clean up managed_channels
+    if str(guild.id) in managed_guilds:
+        temp = managed_guilds[str(guild.id)]
+        del managed_guilds[str(guild.id)]
+
+        for channel_id in temp:
+            if str(channel_id) in managed_channels:
+                del managed_channels[str(channel_id)]
+
 #? BOT COMMANDS
 
 @rankie.command(name='assignRank', aliases=['ar'])
@@ -273,6 +368,7 @@ async def assign_rank(ctx, *cmd):
     for item in sorted_ranks:
         if int(mythic_score) in parse_IO_range(item[1]):
             rank_id = item[0]
+            break
 
     # If rank_id is none, they don't qualify for anything
     if rank_id == None:
@@ -456,6 +552,197 @@ async def set_season(ctx, desired_season):
     else:
         await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{get_prefix(None, ctx.message)}help setSeason**')
 
+@rankie.command(name='setManagedChannel', aliases=['smc'])
+@commands.has_permissions(manage_guild=True)
+@commands.bot_has_guild_permissions(manage_messages=True)
+async def set_managed_channel(ctx, channel_name, frequency):
+    channel = discord.utils.get(ctx.message.guild.channels, name=channel_name)
+
+    # If channel_name is none it does not exist
+    if channel == None:
+        await ctx.message.reply(f'I couldn\'t find a channel with the name __{channel_name}__.')
+        return
+
+    # Only allow text channels
+    if channel.type != 'test':
+        await ctx.message.reply(f'Only text channels can be managed.')
+        return
+
+    # If frequency is not hourly or daily throw an error
+    frequency = frequency.lower()
+    if frequency != 'hourly' and frequency != 'daily':
+        await ctx.message.reply('Received an invalid frequency. Only __daily__ and __hourly__ are accepted.')
+        return
+
+    # Set the managed channel if it does not exist
+    if str(channel.id) in managed_channels:
+        await ctx.message.reply(f'The channel __{channel_name}__ is already managed.')
+    else:
+        managed_channels[str(channel.id)] = [frequency, []]
+
+        if str(ctx.guild.id) in managed_guilds:
+            managed_guilds[str(ctx.guild.id)].append(channel.id)
+        else:
+            managed_guilds[str(ctx.guild.id)] = [channel.id]
+
+        # Dump managed_channels and managed_guilds to disk
+        with open('./config/managed_channels.json', 'w') as temp:
+            json.dump(managed_channels, temp, indent=4)
+
+        with open('./config/managed_guilds.json', 'w') as temp:
+            json.dump(managed_guilds, temp, indent=4)
+
+        await ctx.message.reply(f'The channel __{channel_name}__ is now being managed by Rankie on a __{frequency}__ basis.')
+
+@rankie.command(name='deleteManagedChannel', aliases=['dmc'])
+@commands.has_permissions(manage_guild=True)
+async def delete_managed_channel(ctx, channel_name):
+    channel = discord.utils.get(ctx.message.guild.channels, name=channel_name)
+
+    # If channel is none it does not exist
+    if channel == None:
+        await ctx.message.reply(f'I couldn\'t find a channel with the name __{channel_name}__.')
+        return
+
+    # Delete the managed channel from managed channels
+    if str(channel.id) in managed_channels:
+        del managed_channels[str(channel.id)]
+    else:
+        await ctx.message.reply(f'The channel __{channel_name}__ is already not managed by Rankie.')
+        return
+
+    # Delete the channel from the managed guild list
+    if str(ctx.guild.id) in managed_guilds:
+        managed_guilds[str(ctx.guild.id)].remove(channel.id)
+
+        # If no more entries exist for that guild, remove it.
+        if len(managed_guilds[str(ctx.guild.id)]) <= 0:
+            del managed_guilds[str(ctx.guild.id)]
+
+    # Dump managed_channels and managed_guilds to disk
+    with open('./config/managed_channels.json', 'w') as temp:
+        json.dump(managed_channels, temp, indent=4)
+
+    with open('./config/managed_guilds.json', 'w') as temp:
+        json.dump(managed_guilds, temp, indent=4)
+
+    await ctx.message.reply(f'The channel __{channel_name}__ will no longer be managed by Rankie.')
+
+@rankie.command(name='setSavedMessage', aliases=['ssm'])
+@commands.has_permissions(manage_guild=True)
+async def set_saved_message(ctx, channel_name, message_id):
+    channel = discord.utils.get(ctx.message.guild.channels, name=channel_name)
+
+    # If channel is none it does not exist
+    if channel == None:
+        await ctx.message.reply(f'I couldn\'t find a channel with the name __{channel_name}__.')
+        return
+
+    # If the passed id is not numeric, then its not a valid id
+    if not message_id.isnumeric():
+        await ctx.message.reply(f'The ID {message_id} is not valid.')
+        return
+
+    try:
+        msg = await channel.fetch_message(int(message_id))
+    except Exception as e:
+        logging.info(f'Failed to find a message in {channel_name}. message_id={message_id}: {e}')
+        await ctx.message.reply(f'Failed to find a message in __{channel_name}__ associated with the passed ID __{message_id}__')
+        return
+
+    # Verify that Rankie is currently managing that channel
+    if str(channel.id) in managed_channels:
+
+        # If the message is already managed, throw an error
+        if msg.id in managed_channels[str(channel.id)][1]:
+            await ctx.message.reply(f'The message __{msg.id}__ is already being saved by Rankie.')
+        else:
+            managed_channels[str(channel.id)][1].append(msg.id)
+
+            # Dump managed_channel to disk
+            with open('./config/managed_channels.json', 'w') as temp:
+                json.dump(managed_channels, temp, indent=4)
+
+            await ctx.message.reply(f'The message __{msg.id}__ in __{channel_name}__ will now be saved by Rankie.')
+
+    # Else, the channel is not currently managed...
+    else:
+        await ctx.message.reply(f'The channel {channel_name} is not currently managed by Rankie, please ask Rankie to manage this channel before setting any saved message(s).')
+
+@rankie.command(name='deleteSavedMessage', aliases=['dsm'])
+@commands.has_permissions(manage_guild=True)
+async def delete_saved_message(ctx, channel_name, message_id):
+    channel = discord.utils.get(ctx.message.guild.channels, name=channel_name)
+
+    # If channel is none it does not exist
+    if channel == None:
+        await ctx.message.reply(f'I couldn\'t find a channel with the name __{channel_name}__.')
+        return
+
+    # If the passed id is not numeric, then its not a valid id
+    if not message_id.isnumeric():
+        await ctx.message.reply(f'The ID {message_id} is not valid.')
+        return
+
+    # Verify the channel is being managed by Rankie
+    if str(channel.id) in managed_channels:
+
+        # If the message is being saved
+        if int(message_id) in managed_channels[str(channel.id)][1]:
+            managed_channels[str(channel.id)][1].remove(int(message_id))
+
+            # Dump managed_channels to disk
+            with open('./config/managed_channels.json', 'w') as temp:
+                json.dump(managed_channels, temp, indent=4)
+
+            await ctx.message.reply(f'The message __{message_id}__ will NO longer be saved by Rankie.')
+        
+        else:
+            await ctx.message.reply(f'The message __{message_id}__ is already not being saved or the passed message ID is invalid.')
+    else:
+        await ctx.message.reply(f'The channel __{channel_name}__ is not currently managed by Rankie, please ask Rankie to manage this channel before deleting any saved message(s).')
+
+@rankie.command(name='listManagedChannels', aliases=['lmc'])
+@commands.has_permissions(manage_guild=True)
+async def list_managed_channels(ctx):
+
+    # Check if the guild has managed channels
+    if str(ctx.guild.id) in managed_guilds:
+        msg = f'Managed channels:\n```{"Channel":<20}\t{"Frequency":<20}\n{"-------":<20}\t{"---------":<20}\n'
+
+        for channel_id in managed_guilds[str(ctx.guild.id)]:
+            channel_name = str(discord.utils.get(ctx.message.guild.channels, id=channel_id))
+            msg += f'{channel_name:<20}\t{managed_channels[str(channel_id)][0]:<10}\n'
+
+        msg += '```'
+        await ctx.message.reply(msg)
+    else:
+        await ctx.message.reply(f'This server has no currently managed channels. Please ask **{get_prefix(None, ctx.message)}help setManagedChannel** to learn how to set them.')
+
+@rankie.command(name='listSavedMessages', aliases=['lsm'])
+@commands.has_permissions(manage_guild=True)
+async def list_managed_messages(ctx, channel_name):
+    channel = discord.utils.get(ctx.message.guild.channels, name=channel_name)
+
+    # If channel is none it does not exist
+    if channel == None:
+        await ctx.message.reply(f'I couldn\'t find a channel with the name __{channel_name}__.')
+        return
+
+    # If the channel is being managed
+    if str(channel.id) in managed_channels:
+        # If the length of saved messages is > 0
+        if len(managed_channels[str(channel.id)][1]) > 0:
+            msg = f'Saved message(s) in __{channel_name}__:\n'
+            for msg_id in managed_channels[str(channel.id)][1]:
+                msg += f'``{msg_id}``\n'
+
+            await ctx.message.reply(msg)
+        else:
+            await ctx.message.reply(f'The channel __{channel_name}__ has no saved messages.')
+    else:
+        await ctx.message.reply(f'The channel __{channel_name}__ is not currently being managed by Rankie.')
+
 @rankie.command(name='help', aliases=['h'])
 async def help(ctx, *cmd):
     prefix = get_prefix(None, ctx.message)
@@ -483,6 +770,24 @@ async def help(ctx, *cmd):
     elif ('SETSEASON' == cmd or 'SS' == cmd) and ctx.message.author.guild_permissions.manage_guild:
         msg = f'```Sets the current season that will be used to assign ranks.\n\nUsage: {prefix}setSeason <desired_season>\n\nAliases: {prefix}ss\n\nOnly "current" and "previous" are supported as inputs for this command.```'
         await ctx.message.reply(msg)
+    elif ('SETMANAGEDCHANNEL' == cmd or 'SMC' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+        msg = f'```Sets a channel to be managed. A managed channel will have its messages periodically deleted at a defined frequency. Currently Rankie only supports two frequencies, hourly and daily. Only text channels can be managed.\n\nUsage: {prefix}setManagedChannel <channel_name> <frequency>\n\nAliases: {prefix}smc\n\nExample: {prefix}setManagedChannel general daily```'
+        await ctx.message.reply(msg)
+    elif ('DELETEMANAGEDCHANNEL' == cmd or 'DMC' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+        msg = f'```Removes a managed channel from being managed. This channel will no longer have its messages periodically deleted at the requested frequency.\n\nUsage: {prefix}deleteManagedChannel <channel_name>\n\nAliases: {prefix}dmc\n\nExample: {prefix}deleteManagedChannel general```'
+        await ctx.message.reply(msg)
+    elif ('SETSAVEDMESSAGE' == cmd or 'SSM' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+        msg = f'```Sets a saved message in a managed channel. A saved message will not be deleted when performing channel management.\n\nUsage: {prefix}setSavedMessage <channel_name> <message_id>\n\nAliases: {prefix}ssm\n\nExample: {prefix}setSavedMessage general 862459611819016212```'
+        await ctx.message.reply(msg)
+    elif ('DELETESAVEDMESSAGE' == cmd or 'DSM' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+        msg = f'```Removes a saved message from a managed channel. This message will no longer be saved when performing channel management.\n\nUsage: {prefix}deleteSavedMessage <channel_name> <message_id>\n\nAliases: {prefix}dsm\n\nExample: {prefix}deleteSavedMessage general 862459611819016212```'
+        await ctx.message.reply(msg)
+    elif ('LISTMANAGEDCHANNELS' == cmd or 'LMC' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+        msg = f'```Lists all the current channels being managed by Rankie in this server.\n\nUsage: {prefix}listManagedChannels\n\nAliases: {prefix}lmc```'
+        await ctx.message.reply(msg)
+    elif ('LISTSAVEDMESSAGES' == cmd or 'LSM' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+        msg = f'```Lists all the saved messages for a managed channel in this server.\n\nUsage: {prefix}listSavedMessages <channel_name>\n\nAliases: {prefix}lsm\n\nExample: {prefix}listSavedMessages general```'
+        await ctx.message.reply(msg)
     else:
         msg = 'Available Commands:\n```'
         msg += f'{prefix}assignRank <region>/<realm>/<name>\n\n'
@@ -491,16 +796,27 @@ async def help(ctx, *cmd):
 
         # If the user has manage_guild permissions, give them info on these commands
         if ctx.message.author.guild_permissions.manage_guild:
-            msg += f'{prefix}setRank <IO_Range> [Rank Name] - (Requires Management Role)\n\n'
-            msg += f'{prefix}deleteRank [Rank Name] - (Requires Management Role)\n\n'
-            msg += f'{prefix}setPrefix <desired_prefix> - (Requires Management Role)\n\n'
-            msg += f'{prefix}setSeason <desired_season> - (Requires Management Role)\n\n```'
-            msg += f'\nRankie is currently using the __{get_season(ctx.guild.id)}__ season to calculate its scores for ranks.\n'
+            msg += f'{prefix}setRank <IO_Range> [Rank Name]\n\n'
+            msg += f'{prefix}deleteRank [Rank Name]\n\n'
+            msg += f'{prefix}setPrefix <desired_prefix>\n\n'
+            msg += f'{prefix}setSeason <desired_season>\n\n'
+            msg += f'{prefix}setManagedChannel <channel_name> <frequency>\n\n'
+            msg += f'{prefix}deleteManagedChannel <channel_name>\n\n'
+            msg += f'{prefix}setSavedMessage <channel_name> <message_id>\n\n'
+            msg += f'{prefix}deleteSavedMessage <channel_name> <message_id>\n\n'
+            msg += f'{prefix}listManagedChannels\n\n'
+            msg += f'{prefix}listSavedMessages <channel_name>\n\n'
+            msg += '```'
         else:
             msg += '```'
 
+        msg += f'\nRankie is currently using the __{get_season(ctx.guild.id)}__ season to calculate its scores for ranks.\n'
         msg += f'\nFor more information on a command, type ``{prefix}help <command_name>``'
         await ctx.message.reply(msg)
+
+# Setup repeated tasks
+rankie.loop.create_task(hourly_management())
+rankie.loop.create_task(daily_management())
 
 # Run the bot!
 rankie.run(config['discordToken'])
