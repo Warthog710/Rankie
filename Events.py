@@ -9,7 +9,7 @@ class events:
 
     async def on_command_error(self, ctx, error):
         self.__logging.info(f'Unspecified command error occurred: {error}')
-        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me **{self.__get_prefix(None, ctx.message)}help**')
+        await ctx.message.reply(f'I didn\'t recognize that command. Try asking me **{self.__cfg.get_prefix(None, ctx.message)}help**')
 
     async def on_guild_join(self, guild):
         self.__logging.info(f'Rankie joined {guild.id}')
