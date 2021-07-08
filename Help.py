@@ -1,6 +1,14 @@
+from discord import Embed
 class help:
     def __init__(self, cfg):
         self.__cfg = cfg
+
+    def help_embed(self, title, description, usage, aliases, example):
+        embed = Embed(title=title, description=description, color=0x053ad6)
+        embed.add_field(name='Usage:', value=usage, inline=False)
+        embed.add_field(name='Aliases:', value=aliases, inline=False)
+        embed.add_field(name='Example:', value=example, inline=False)
+        return embed
 
     # Prints a help message for the passed command (or generic) in the requested channel
     async def help_message(self, ctx, cmd):
@@ -9,47 +17,125 @@ class help:
         cmd = cmd.upper()
 
         if 'ASSIGNRANK' == cmd or 'AR' == cmd:
-            msg = f'```Assigns a rank based on your current Raider.io mythic+ score.\n\nUsage: {prefix}assignRank <region>/<realm>/<name>\n\nAliases: {prefix}ar\n\nExample: {prefix}assignRank us/aggramar/sapphirre```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}assignRank'
+            description = 'Assigns a rank based on your current Raider.io mythic+ score.'
+            usage = f'{prefix}assignRank <region>/<realm>/<name>'
+            aliases = f'{prefix}ar'
+            example = f'{prefix}assignRank us/aggramar/sapphirre'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
         elif 'PROFILE' == cmd or 'P' == cmd:
-            msg = f'```Return the URL for a characters Raider.io profile.\n\nUsage: {prefix}profile <region>/<realm>/<name>\n\nAliases: {prefix}p\n\nExample: {prefix}profile us/aggramar/sapphirre```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}profile'
+            description = 'Returns the URL for a characters Raider.io profile.'
+            usage = f'{prefix}profile <region>/<realm>/<name>'
+            aliases = f'{prefix}p'
+            example = f'{prefix}profile us/aggramar/sapphirre'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
         elif 'LISTRANKS' == cmd or 'LR' == cmd:
-            msg = f'```Lists all the currently set ranks for this server.\n\nUsage: {prefix}listRanks\n\nAliases: {prefix}lr```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}listRanks'
+            description = 'Lists all the currently set ranks for this server.'
+            usage = f'{prefix}listRanks'
+            aliases = f'{prefix}lr'
+            example = f'{prefix}listRanks'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))        
         elif ('SETRANK' == cmd or 'SR' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Adds a rank attached to a specified IO range. When a member asks to be assigned a rank and their mythic+ score is within this range, the associated rank will be assigned.\n\nUsage: {prefix}setRank <IO_Range> [Rank Name]\n\nAliases: {prefix}sr\n\nExample: {prefix}setRank 0-1000 Baby\nExample: {prefix}setRank 1000+ Bigger Baby\n\nNote, the IO range passed or the rank name cannot overlap with existing managed ranks. In addition, the end value of a range is exclusive. This means that the range 0-1000 maxes out at 999.```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}setRank'
+            description = 'Adds a rank attached to a specified mythic+ score range. When a member asks to be assigned a rank and their mythic+ score is within this range, the associated rank will be assigned. Note, the mythic+ score range passed cannot overlap with an existing managed rank. In addition, the end value of a range is exclusive. This means that the range 0-1000 maxes out at 999.'
+            usage = f'{prefix}setRank <IO_Range> [Rank Name]'
+            aliases = f'{prefix}sr'
+            example = f'{prefix}setRank 0-1000 Baby\n{prefix}setRank 1000+ Bigger Baby'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))  
         elif ('DELETERANK' == cmd or 'DR' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Deletes a rank that already exists.\n\nUsage: {prefix}deleteRank [Rank Name]\n\nAliases: {prefix}dr\n\nExample: {prefix}deleteRank Bigger Baby```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}deleteRank'
+            description = 'Deletes a rank that is currently being managed. This rank will also be deleted from the server. Note, if the rank does not exist, Rankie will also fail to delete the rank internally.'
+            usage = f'{prefix}deleteRank [Rank Name]'
+            aliases = f'{prefix}dr'
+            example = f'{prefix}deleteRank Bigger Baby'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))  
         elif ('SETPREFIX' == cmd or 'SP' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Sets the prefix that Rankie uses for this server.\n\nUsage: {prefix}setPrefix <desired_prefix>\n\nAliases: {prefix}sp\n\nExample: {prefix}setPrefix !```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}setPrefix'
+            description = 'Sets the prefix that Rankie uses for this server. Prefixes must be a single character.'
+            usage = f'{prefix}setPrefix <desired_prefix>'
+            aliases = f'{prefix}sp'
+            example = f'{prefix}setPrefix !'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))  
         elif ('SETSEASON' == cmd or 'SS' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Sets the current season that will be used to assign ranks.\n\nUsage: {prefix}setSeason <desired_season>\n\nAliases: {prefix}ss\n\nOnly "current" and "previous" are supported as inputs for this command.```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}setSeason'
+            description = 'Sets the season that Rankie will use to assign ranks. This can be either *current* or *previous*.'
+            usage = f'{prefix}setSeason <desired_season>'
+            aliases = f'{prefix}ss'
+            example = f'{prefix}setSeason current'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))  
         elif ('SETMANAGEDCHANNEL' == cmd or 'SMC' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Sets a channel to be managed. A managed channel will have its messages periodically deleted at a defined frequency. Currently Rankie only supports two frequencies, hourly and daily. Only text channels can be managed.\n\nUsage: {prefix}setManagedChannel <channel_name> <frequency>\n\nAliases: {prefix}smc\n\nExample: {prefix}setManagedChannel general daily```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}setManagedChannel'
+            description = 'Sets a channel to be managed. A managed channel will have its messages periodically deleted at a defined frequency. Currently Rankie only supports two frequencies, *hourly* and *daily*. Only text channels can be managed.'
+            usage = f'{prefix}setManagedChannel <channel_name> <frequency>'
+            aliases = f'{prefix}smc'
+            example = f'{prefix}setManagedChannel general daily'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))  
         elif ('DELETEMANAGEDCHANNEL' == cmd or 'DMC' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Removes a managed channel from being managed. This channel will no longer have its messages periodically deleted at the requested frequency.\n\nUsage: {prefix}deleteManagedChannel <channel_name>\n\nAliases: {prefix}dmc\n\nExample: {prefix}deleteManagedChannel general```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}deleteManagedChannel'
+            description = 'Removes a managed channel from being managed. This channel will no longer have its messages periodically deleted at the requested frequency. Note, the actual channel is not deleted from the server.'
+            usage = f'{prefix}deleteManagedChannel <channel_name>'
+            aliases = f'{prefix}dmc'
+            example = f'{prefix}deleteManagedChannel general'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
         elif ('SETSAVEDMESSAGE' == cmd or 'SSM' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Sets a saved message in a managed channel. A saved message will not be deleted when performing channel management.\n\nUsage: {prefix}setSavedMessage <channel_name> <message_id>\n\nAliases: {prefix}ssm\n\nExample: {prefix}setSavedMessage general 862459611819016212```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}setSavedMessage'
+            description = 'Sets a saved message in a managed channel. A saved message will not be deleted when performing channel management.'
+            usage = f'{prefix}setSavedMessage <channel_name> <message_id>'
+            aliases = f'{prefix}ssm'
+            example = f'{prefix}setSavedMessage general 862459611819016212'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
         elif ('DELETESAVEDMESSAGE' == cmd or 'DSM' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Removes a saved message from a managed channel. This message will no longer be saved when performing channel management.\n\nUsage: {prefix}deleteSavedMessage <channel_name> <message_id>\n\nAliases: {prefix}dsm\n\nExample: {prefix}deleteSavedMessage general 862459611819016212```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}deleteSavedMessage'
+            description = 'Removes a saved message from a managed channel. This message will no longer be saved when performing channel management. Note, this message will not be immediately deleted, rather it will be deleted when Rankie performs its next scheduled channel management.'
+            usage = f'{prefix}deleteSavedMessage <channel_name> <message_id>'
+            aliases = f'{prefix}dsm'
+            example = f'{prefix}deleteSavedMessage general 862459611819016212'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
         elif ('LISTMANAGEDCHANNELS' == cmd or 'LMC' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Lists all the current channels being managed by Rankie in this server.\n\nUsage: {prefix}listManagedChannels\n\nAliases: {prefix}lmc```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}listManagedChannels'
+            description = 'Lists all the current channels being managed by Rankie in this server.'
+            usage = f'{prefix}listManagedChannels'
+            aliases = f'{prefix}lmc'
+            example = f'{prefix}listManagedChannels'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
         elif ('LISTSAVEDMESSAGES' == cmd or 'LSM' == cmd) and ctx.message.author.guild_permissions.manage_guild:
-            msg = f'```Lists all the saved messages for a managed channel in this server.\n\nUsage: {prefix}listSavedMessages <channel_name>\n\nAliases: {prefix}lsm\n\nExample: {prefix}listSavedMessages general```'
-            await ctx.message.reply(msg)
+            title = f'{prefix}listSavedMessages'
+            description = 'Lists all the saved messages for a managed channel in this server.'
+            usage = f'{prefix}listSavedMesages <channel_name>'
+            aliases = f'{prefix}lsm'
+            example = f'{prefix}listSavedMessages general'
+
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
         else:
-            msg = 'Available Commands:\n```'
-            msg += f'{prefix}assignRank <region>/<realm>/<name>\n\n'
+            embed = Embed(title='Rankie Generic Help', description=f'For more information on a command type: *{prefix}help <command_name>*')
+            msg = f'{prefix}assignRank <region>/<realm>/<name>\n\n'
             msg += f'{prefix}profile <region>/<realm>/<name>\n\n'
             msg += f'{prefix}listRanks\n\n'
 
@@ -65,10 +151,8 @@ class help:
                 msg += f'{prefix}deleteSavedMessage <channel_name> <message_id>\n\n'
                 msg += f'{prefix}listManagedChannels\n\n'
                 msg += f'{prefix}listSavedMessages <channel_name>\n\n'
-                msg += '```'
-            else:
-                msg += '```'
 
-            msg += f'\nRankie is currently using the __{self.__cfg.get_season(ctx.guild.id)}__ season to calculate its scores for ranks.\n'
-            msg += f'\nFor more information on a command, type ``{prefix}help <command_name>``'
-            await ctx.message.reply(msg)
+            embed.add_field(name='Available Commands:', value=msg, inline=False)
+            embed.add_field(name='Info:', value=f'Rankie is currently using the __{self.__cfg.get_season(ctx.guild.id)}__ season to calculate its scores for ranks.\n\nOn all commands, the angle or square brackets designate where a command parameter is placed. These brackets are mean\'t to be replaced with the text inside.')
+
+            await ctx.message.reply(embed=embed)
