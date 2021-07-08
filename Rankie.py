@@ -131,6 +131,7 @@ async def help(ctx, *cmd):
 # Setup repeated tasks
 rankie.loop.create_task(tsks.hourly_management())
 rankie.loop.create_task(tsks.daily_management())
+rankie.loop.create_task(tsks.change_status())
 
 # Run the bot!
 rankie.run(cfg.config['discordToken'])

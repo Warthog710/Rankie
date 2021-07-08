@@ -1,7 +1,7 @@
 import asyncio
 
 from datetime import datetime, timedelta
-
+from discord import Activity, ActivityType, Status
 class tasks:
     def __init__(self, rankie, logging, cfg):
         self.__rankie = rankie
@@ -46,6 +46,19 @@ class tasks:
                     # Do the thing
                     if self.__cfg.managed_channels[str(channel_id)][0] == 'daily':
                         await self.__purge_channel(channel_id, self.__cfg.managed_channels[str(channel_id)][1])
+
+            # Sleep until the next day
+            next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
+            wait_seconds = (next_day - datetime.now()).seconds
+            await asyncio.sleep(wait_seconds)
+
+    # Triggers daily to change bot status
+    async def change_status(self):
+        await self.__rankie.wait_until_ready()
+
+        # Change the bot status while running every 24hrs and on start
+        while not self.__rankie.is_closed():
+            await self.__rankie.change_presence(activity=Activity(type=ActivityType.watching, name='for queries...'), status=Status.online)
 
             # Sleep until the next day
             next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
