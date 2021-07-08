@@ -4,7 +4,7 @@ class help:
         self.__cfg = cfg
 
     def help_embed(self, title, description, usage, aliases, example):
-        embed = Embed(title=title, description=description, color=0x053ad6)
+        embed = Embed(title=title, description=description)
         embed.add_field(name='Usage:', value=usage, inline=False)
         embed.add_field(name='Aliases:', value=aliases, inline=False)
         embed.add_field(name='Example:', value=example, inline=False)
