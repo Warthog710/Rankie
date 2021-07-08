@@ -91,6 +91,13 @@ class rank_management:
         else:
             return None
 
+    def __assign_rank_embed(self, name, realm, rank_name, score_range, profile_url, mythic_plus_score, rank_color):
+        embed=discord.Embed(title=f'{name.title()}-{realm.title()}', url=profile_url, description=f'You have been assigned {rank_name}. This rank is for players with a mythic+ score of {score_range}.\n\n', color=rank_color)
+        embed.add_field(name='Current Mythic+ Score:', value=mythic_plus_score, inline=True)
+        embed.add_field(name='Assigned Rank:', value=rank_name, inline=True)
+        embed.set_footer(text='\n\nProvided by Raider.io')
+        return embed
+
     async def __add_role(self, ctx, role, IO_range):
         # Add the role
         if str(ctx.guild.id) in self.__cfg.roles:
@@ -129,6 +136,7 @@ class rank_management:
             # Else, grab the current score
             else:
                 mythic_score = resp_json['mythic_plus_scores_by_season'][0]['scores']['all']
+                profile_url = resp_json['profile_url']
 
         except Exception as e:
             self.__logging.info(f'Failed to recognize the command for assignRank. Cmd={cmd}: {e}')
@@ -175,7 +183,9 @@ class rank_management:
             self.__logging.warning(f'Failed to delete/assign a new role: {e}')
             return    
 
-        await ctx.message.reply(f'You have been assigned {discord.utils.get(ctx.message.guild.roles, id=rank_id)}. This rank is for players with a mythic+ score of {dict(sorted_ranks)[rank_id]}.')
+        assigned_rank = discord.utils.get(ctx.message.guild.roles, id=rank_id)
+        await ctx.message.reply(embed=self.__assign_rank_embed(name, realm, str(assigned_rank), str(dict(sorted_ranks)[rank_id]), profile_url, mythic_score, assigned_rank.color))
+        #await ctx.message.reply(f'You have been assigned {discord.utils.get(ctx.message.guild.roles, id=rank_id)}. This rank is for players with a mythic+ score of {dict(sorted_ranks)[rank_id]}.')
 
     # Returns a profile link for the user based on the passed character
     async def profile(self, ctx, cmd):
@@ -271,15 +281,19 @@ class rank_management:
         sorted_ranks = self.__get_sorted_ranks(ctx.guild.id)
         if sorted_ranks != None:
             if len(sorted_ranks) > 0:
-                msg = f'Currently set ranks:\n```{"Rank Name":<20}\t{"IO Range":<20}\n'
-                msg += f'{"---------":<20}\t{"--------":<20}\n'
+                embed=discord.Embed(title='Currently set ranks:')
+                #msg = f'Currently set ranks:\n```{"Rank Name":<20}\t{"IO Range":<20}\n'
+                #msg += f'{"---------":<20}\t{"--------":<20}\n'
 
+                rank_names = ''
+                score_ranges = ''
                 for item in sorted_ranks:
-                    rank_name = str(discord.utils.get(ctx.message.guild.roles, id=item[0]))
-                    msg += f'{rank_name:<20}\t{item[1]:<20}\n'
+                    rank_names += str(discord.utils.get(ctx.message.guild.roles, id=item[0])) + '\n'
+                    score_ranges += item[1] + '\n'
 
-                msg += '```'
-                await ctx.message.reply(msg)
+                embed.add_field(name=f'Ranks:     ', value=rank_names, inline=True)
+                embed.add_field(name=f'Ranges:', value=score_ranges, inline=True)
+                await ctx.message.reply(embed=embed)
                 return
 
         self.__logging.info(f'Failed to find any roles in listRanks for guild {ctx.guild.id}')
