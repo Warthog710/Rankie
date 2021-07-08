@@ -11,8 +11,6 @@ from Tasks import tasks
 from Help import help
 
 #TODO: Change bot status once every 24 hrs to something funny
-#TODO: Change list messages to embeds (and help command)
-#TODO: Improve assignRank response (make a pretty embed)
 
 # Setup logging
 if not os.path.exists('./logs'):
