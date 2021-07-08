@@ -282,8 +282,6 @@ class rank_management:
         if sorted_ranks != None:
             if len(sorted_ranks) > 0:
                 embed=discord.Embed(title='Currently set ranks:')
-                #msg = f'Currently set ranks:\n```{"Rank Name":<20}\t{"IO Range":<20}\n'
-                #msg += f'{"---------":<20}\t{"--------":<20}\n'
 
                 rank_names = ''
                 score_ranges = ''
