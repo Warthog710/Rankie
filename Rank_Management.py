@@ -179,7 +179,7 @@ class rank_management:
             # Add new rank
             await ctx.message.author.add_roles(discord.utils.get(ctx.message.guild.roles, id=rank_id))
         except Exception as e:
-            await ctx.message.reply('Failed to assign the correct rank. This is likely due to a permissions issue. Please make sure Rankie has the ability to assign and delete roles.')
+            await ctx.message.reply('Failed to assign the correct rank. This is likely due to a permissions issue. Or the rank no longer exists.')
             self.__logging.warning(f'Failed to delete/assign a new role: {e}')
             return    
 
@@ -257,7 +257,20 @@ class rank_management:
         # If the role ID does not exist on the server
         rank = discord.utils.get(ctx.message.guild.roles, name=rank_name)
         if rank == None:
-            await ctx.message.reply(f'I could not find the passed rank on this server. Please verify the rank exists.')
+            # ? It may be possible that the passed rank has been deleted manually from the guild, in this case NONE would be returned.
+            # Iterate through set ranks, if one returns none remove it.
+            for rank_id in self.__cfg.roles[str(ctx.guild.id)]:
+                rank = discord.utils.get(ctx.message.guild.roles, id=rank_id[0])
+
+                # One of the saved ranks no longer exists, remove it and state the rank has been deleted.
+                if rank == None:
+                    self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != rank_id[0]]
+                    self.__cfg.dump_json(self.__cfg.roles, 'roles')
+                    await ctx.message.reply(f'Successfully deleted the rank {rank_name}.')
+                    return
+
+            # If no ranks saved return none, state so...        
+            await ctx.message.reply('I could not find the passed rank on this server. Please verify the rank exists.')
             return
 
         # Delete the rank
@@ -286,7 +299,21 @@ class rank_management:
                 rank_names = ''
                 score_ranges = ''
                 for item in sorted_ranks:
-                    rank_names += str(discord.utils.get(ctx.message.guild.roles, id=item[0])) + '\n'
+                    name = str(discord.utils.get(ctx.message.guild.roles, id=item[0]))
+
+                    # If the name is None, don't print it and remove that rank
+                    if name == 'None':
+                        self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != item[0]]
+                        self.__cfg.dump_json(self.__cfg.roles, 'roles')
+
+                        # If that was the last rank, return
+                        if len(self.__cfg.roles[str(ctx.guild.id)]) <= 0:
+                            await ctx.message.reply(f'I could not find any set ranks for this server. Please try setting a rank before using this command.')
+                            return
+
+                        continue
+
+                    rank_names += name + '\n'
                     score_ranges += item[1] + '\n'
 
                 embed.add_field(name=f'Ranks:     ', value=rank_names, inline=True)
