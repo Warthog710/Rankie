@@ -127,8 +127,7 @@ async def help(ctx, *cmd):
     await hlp.help_message(ctx, cmd)
 
 # Setup repeated tasks
-rankie.loop.create_task(tsks.hourly_management())
-rankie.loop.create_task(tsks.daily_management())
+rankie.loop.create_task(tsks.channel_management())
 rankie.loop.create_task(tsks.change_status())
 
 # Run the bot!

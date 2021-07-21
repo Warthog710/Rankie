@@ -9,8 +9,9 @@ class tasks:
         self.__cfg = cfg
 
     # Triggers hourly
-    async def hourly_management(self):
+    async def channel_management(self):
         await self.__rankie.wait_until_ready()
+        daily_management = False
 
         # Sleep until the next hour
         next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
@@ -18,38 +19,32 @@ class tasks:
         await asyncio.sleep(wait_seconds)
 
         while not self.__rankie.is_closed():
+            if datetime.now().hour == 0:
+                self.__logging.info('Performing daily and hourly channel management.')
+                daily_management = True
+            else:
+                self.__logging.info('Performing hourly channel management.')
+
             for guild_id in self.__cfg.managed_guilds:
                 for channel_id in self.__cfg.managed_guilds[str(guild_id)]:
 
-                    # Do the thing
-                    if self.__cfg.managed_channels[str(channel_id)][0] == 'hourly':
-                        await self.__purge_channel(channel_id, self.__cfg.managed_channels[str(channel_id)][1])
+                    # Perform hourly management
+                    if not daily_management:
+                        if self.__cfg.managed_channels[str(channel_id)][0] == 'hourly':
+                            await self.__purge_channel(channel_id, self.__cfg.managed_channels[str(channel_id)][1])
+                    # Perform daily and hourly management
+                    else:
+                            await self.__purge_channel(channel_id, self.__cfg.managed_channels[str(channel_id)][1])
+
+            # Reset daily management
+            daily_management = False
+
+            # Log completion
+            self.__logging.info('Channel management complete.')
 
             # Sleep until the next hour
             next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
             wait_seconds = (next_hour - datetime.now()).seconds
-            await asyncio.sleep(wait_seconds)
-
-    # Triggers daily
-    async def daily_management(self):
-        await self.__rankie.wait_until_ready()
-
-        # Sleep until the next day
-        next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
-        wait_seconds = (next_day - datetime.now()).seconds
-        await asyncio.sleep(wait_seconds)
-
-        while not self.__rankie.is_closed():
-            for guild_id in self.__cfg.managed_guilds:
-                for channel_id in self.__cfg.managed_guilds[str(guild_id)]:
-
-                    # Do the thing
-                    if self.__cfg.managed_channels[str(channel_id)][0] == 'daily':
-                        await self.__purge_channel(channel_id, self.__cfg.managed_channels[str(channel_id)][1])
-
-            # Sleep until the next day
-            next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
-            wait_seconds = (next_day - datetime.now()).seconds
             await asyncio.sleep(wait_seconds)
 
     # Triggers daily to change bot status
