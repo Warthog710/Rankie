@@ -62,7 +62,7 @@ class tasks:
 
     # Triggers daily to save all settings to disk
     async def save_json(self):
-        await self.__rankie.wait_until.ready()
+        await self.__rankie.wait_until_ready()
 
         # Sleep until the next day
         next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
