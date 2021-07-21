@@ -9,7 +9,7 @@ Roles can be customized on a per server basis. Only users with the ability to ma
 **Available Realms:** <a href="https://worldofwarcraft.com/en-us/game/status/us">Official List</a>
 
 #### Commands:
- * ``?assignRole <region>/<realm>/<name>``:
+ * ``?assignRank <region>/<realm>/<name>``:
     * Assigns a rank based on the passed characters current Raider IO score. The ranks used for this command must be set using ``?setRank``.
 
  * ``?profile <region>/<realm>/<name>``:
