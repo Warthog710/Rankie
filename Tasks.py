@@ -60,6 +60,43 @@ class tasks:
             wait_seconds = (next_day - datetime.now()).seconds
             await asyncio.sleep(wait_seconds)
 
+    # Triggers daily to save all settings to disk
+    async def save_json(self):
+        await self.__rankie.wait_until.ready()
+
+        # Sleep until the next day
+        next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
+        wait_seconds = (next_day - datetime.now()).seconds
+        await asyncio.sleep(wait_seconds)
+
+        while not self.__rankie.is_closed():
+            self.__logging.info('Performing daily dictionary save.')
+
+            # Dump config
+            self.__cfg.dump_json(self.__cfg.config, 'config')
+
+            # Dump managed_channels
+            self.__cfg.dump_json(self.__cfg.managed_channels, 'managed_channels')
+
+            # Dump managed_guilds
+            self.__cfg.dump_json(self.__cfg.managed_guilds, 'managed_guilds')
+
+            # Dump prefixes
+            self.__cfg.dump_json(self.__cfg.prefixes, 'prefixes')
+
+            # Dump roles
+            self.__cfg.dump_json(self.__cfg.roles, 'roles')
+
+            # Dump season
+            self.__cfg.dump_json(self.__cfg.season, 'season')
+
+            self.__logging.info('Successfully saved dictionaries.')
+
+            # Sleep until the next day
+            next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
+            wait_seconds = (next_day - datetime.now()).seconds
+            await asyncio.sleep(wait_seconds)
+
     # Given a channel_id, delete all of its messaged except for those that have ID's in reserved messages
     async def __purge_channel(self, channel_id, reserved_messages):
         # Attempt to fetch channel

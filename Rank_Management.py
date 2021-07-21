@@ -105,9 +105,6 @@ class rank_management:
         else:
             self.__cfg.roles[str(ctx.guild.id)] = [(role.id, IO_range)]
 
-        # Dump roles to disk
-        self.__cfg.dump_json(self.__cfg.roles, 'roles')
-
         await ctx.message.reply(f'Successfully created the rank {role} with an assigned IO range of {IO_range}.')   
 
     # Queries Raider.io for information related to a provided character
@@ -265,7 +262,6 @@ class rank_management:
                 # One of the saved ranks no longer exists, remove it and state the rank has been deleted.
                 if rank == None:
                     self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != rank_id[0]]
-                    self.__cfg.dump_json(self.__cfg.roles, 'roles')
                     await ctx.message.reply(f'Successfully deleted the rank {rank_name}.')
                     return
 
@@ -275,9 +271,6 @@ class rank_management:
 
         # Delete the rank
         self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != rank.id]
-        
-        # Dump roles to disk
-        self.__cfg.dump_json(self.__cfg.roles, 'roles')
 
         # Attempt to delete the rank from the server
         try:
@@ -304,7 +297,6 @@ class rank_management:
                     # If the name is None, don't print it and remove that rank
                     if name == 'None':
                         self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != item[0]]
-                        self.__cfg.dump_json(self.__cfg.roles, 'roles')
 
                         # If that was the last rank, return
                         if len(self.__cfg.roles[str(ctx.guild.id)]) <= 0:
@@ -330,18 +322,10 @@ class rank_management:
 
         if desired_season == 'current':
             self.__cfg.season[str(ctx.guild.id)] = 'current'
-            
-            # Dump season to disk
-            self.__cfg.dump_json(self.__cfg.season, 'season')
-
             await ctx.message.reply('The __current__ season will now be used for scores.')
 
         elif desired_season == 'previous':
             self.__cfg.season[str(ctx.guild.id)] = 'previous'
-
-            # Dump season to disk
-            self.__cfg.dump_json(self.__cfg.season, 'season')
-
             await ctx.message.reply('The __previous__ season will now be used for scores.')
 
         else:

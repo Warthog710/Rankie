@@ -73,9 +73,6 @@ class config:
         else:
             self.season[str(guild_id)] = 'current'
 
-            # Dump to disk
-            self.dump_json(self.season, 'season')
-
     # Get the server prefix
     def get_prefix(self, client, message):
         if str(message.guild.id) in self.prefixes:
@@ -85,8 +82,7 @@ class config:
         else:
             self.prefixes[str(message.guild.id)] = self.__DEFAULT_PREFIX
 
-            # Dump to disk and return default prefix
-            self.dump_json(self.prefixes, 'prefixes')
+            # Return default prefix
             return self.__DEFAULT_PREFIX
 
     # Sets the prefix for a guild
@@ -94,10 +90,7 @@ class config:
         # Accept only prefixes of a single char
         if len(desired_prefix) == 1:
             self.prefixes[str(ctx.guild.id)] = desired_prefix
-
-            # Dump the new prefix
-            self.dump_json(self.prefixes, 'prefixes')
-
+            
             # Inform the user of the change
             await ctx.message.reply(f'Prefix successfully changed to: **{desired_prefix}**')
 

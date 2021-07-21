@@ -36,10 +36,6 @@ class channel_management:
             else:
                 self.__cfg.managed_guilds[str(ctx.guild.id)] = [channel.id]
 
-            # Dump managed_channels and managed_guilds to disk
-            self.__cfg.dump_json(self.__cfg.managed_channels, 'managed_channels')
-            self.__cfg.dump_json(self.__cfg.managed_guilds, 'managed_guilds')
-
             await ctx.message.reply(f'The channel __{channel_name}__ is now being managed by Rankie on a __{frequency}__ basis.')
 
     # Removes an existing channel from management, the channel itself is not affected.
@@ -65,10 +61,6 @@ class channel_management:
             # If no more entries exist for that guild, remove it.
             if len(self.__cfg.managed_guilds[str(ctx.guild.id)]) <= 0:
                 del self.__cfg.managed_guilds[str(ctx.guild.id)]
-
-        # Dump managed_channels and managed_guilds to disk
-        self.__cfg.dump_json(self.__cfg.managed_channels, 'managed_channels')
-        self.__cfg.dump_json(self.__cfg.managed_guilds, 'managed_guilds')
 
         await ctx.message.reply(f'The channel __{channel_name}__ will no longer be managed by Rankie.')
 
@@ -100,10 +92,6 @@ class channel_management:
                 await ctx.message.reply(f'The message __{msg.id}__ is already being saved by Rankie.')
             else:
                 self.__cfg.managed_channels[str(channel.id)][1].append(msg.id)
-
-                # Dump managed_channel to disk
-                self.__cfg.dump_json(self.__cfg.managed_channels, 'managed_channels')
-
                 await ctx.message.reply(f'The message __{msg.id}__ in __{channel_name}__ will now be saved by Rankie.')
 
         # Else, the channel is not currently managed...
@@ -130,10 +118,6 @@ class channel_management:
             # If the message is being saved
             if int(message_id) in self.__cfg.managed_channels[str(channel.id)][1]:
                 self.__cfg.managed_channels[str(channel.id)][1].remove(int(message_id))
-
-                # Dump managed_channels to disk
-                self.__cfg.dump_json(self.__cfg.managed_channels, 'managed_channels')
-
                 await ctx.message.reply(f'The message __{message_id}__ will NO longer be saved by Rankie.')
             
             else:

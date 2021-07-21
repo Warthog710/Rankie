@@ -15,32 +15,20 @@ class events:
         self.__logging.info(f'Rankie joined {guild.id}')
         self.__cfg.prefixes[str(guild.id)] = self.__cfg.DEFAULT_PREFIX
 
-        # Dump the new prefix to disk
-        self.__cfg.dump_json(self.__cfg.prefixes, 'prefixes')
-
     async def on_guild_remove(self, guild):
         self.__logging.info(f'Rankie left {guild.id}')
 
         # Clean up prefixes
         if str(guild.id) in self.__cfg.prefixes:
-            del self.__cfg.prefixes[str(guild.id)]
-
-            # Dump the prefixes to disk
-            self.__cfg.dump_json(self.__cfg.prefixes, 'prefixes')            
+            del self.__cfg.prefixes[str(guild.id)]        
 
         # Clean up roles
         if str(guild.id) in self.__cfg.roles:
             del self.__cfg.roles[str(guild.id)]
 
-            # Dump the roles to disk
-            self.__cfg.dump_json(self.__cfg.roles, 'roles')
-
         # Clean up season
         if str(guild.id) in self.__cfg.season:
             del self.__cfg.season[str(guild.id)]
-
-            # Dump the seasons to disk
-            self.__cfg.dump_json(self.__cfg.season, 'season')
 
         # Clean up managed_channels
         if str(guild.id) in self.__cfg.managed_guilds:
@@ -50,7 +38,3 @@ class events:
             for channel_id in temp:
                 if str(channel_id) in self.__cfg.managed_channels:
                     del self.__cfg.managed_channels[str(channel_id)]
-
-            # Dump managed_guilds and managed_channels to disk
-            self.__cfg.dump_json(self.__cfg.managed_guilds, 'managed_guilds')
-            self.__cfg.dump_json(self.__cfg.managed_channels, 'managed_channels')
