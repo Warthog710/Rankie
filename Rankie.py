@@ -1,4 +1,5 @@
 import os
+import atexit
 import logging
 
 from discord.ext import commands
@@ -126,8 +127,32 @@ async def set_prefix(ctx, desired_prefix):
 async def help(ctx, *cmd):
     await hlp.help_message(ctx, cmd)
 
+# This function runs on Rankie exit, saving all dictionaries
+@atexit.register
+def on_close():
+    # Dump config
+    cfg.dump_json(cfg.config, 'config')
+
+    # Dump managed_channels
+    cfg.dump_json(cfg.managed_channels, 'managed_channels')
+
+    # Dump managed_guilds
+    cfg.dump_json(cfg.managed_guilds, 'managed_guilds')
+
+    # Dump prefixes
+    cfg.dump_json(cfg.prefixes, 'prefixes')
+
+    # Dump roles
+    cfg.dump_json(cfg.roles, 'roles')
+
+    # Dump season
+    cfg.dump_json(cfg.season, 'season')
+
+    logging.info('Successfully saved dictionaries on exit.')
+
 # Setup repeated tasks
 rankie.loop.create_task(tsks.channel_management())
+rankie.loop.create_task(tsks.save_json())
 rankie.loop.create_task(tsks.change_status())
 
 # Run the bot!
