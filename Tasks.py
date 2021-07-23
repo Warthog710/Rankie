@@ -20,10 +20,7 @@ class tasks:
 
         while not self.__rankie.is_closed():
             if datetime.now().hour == 0:
-                self.__logging.info('Performing daily and hourly channel management.')
                 daily_management = True
-            else:
-                self.__logging.info('Performing hourly channel management.')
 
             for guild_id in self.__cfg.managed_guilds:
                 for channel_id in self.__cfg.managed_guilds[str(guild_id)]:
@@ -38,9 +35,6 @@ class tasks:
 
             # Reset daily management
             daily_management = False
-
-            # Log completion
-            self.__logging.info('Channel management complete.')
 
             # Sleep until the next hour
             next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
@@ -70,7 +64,6 @@ class tasks:
         await asyncio.sleep(wait_seconds)
 
         while not self.__rankie.is_closed():
-            self.__logging.info('Performing daily dictionary save.')
 
             # Dump config
             self.__cfg.dump_json(self.__cfg.config, 'config')
@@ -89,9 +82,7 @@ class tasks:
 
             # Dump season
             self.__cfg.dump_json(self.__cfg.season, 'season')
-
-            self.__logging.info('Successfully saved dictionaries.')
-
+            
             # Sleep until the next day
             next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
             wait_seconds = (next_day - datetime.now()).seconds
