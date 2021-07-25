@@ -16,7 +16,7 @@ class tasks:
         # Sleep until the next hour
         next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
         wait_seconds = (next_hour - datetime.now()).seconds
-        await asyncio.sleep(wait_seconds)
+        await asyncio.sleep(wait_seconds + 1)
 
         while not self.__rankie.is_closed():
             if datetime.now().hour == 0:
@@ -39,7 +39,7 @@ class tasks:
             # Sleep until the next hour
             next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
             wait_seconds = (next_hour - datetime.now()).seconds
-            await asyncio.sleep(wait_seconds)
+            await asyncio.sleep(wait_seconds + 1)
 
     # Triggers daily to change bot status
     async def change_status(self):
