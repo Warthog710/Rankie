@@ -1,4 +1,5 @@
 import os
+import sys
 import atexit
 import logging
 
@@ -17,7 +18,10 @@ from Help import help
 if not os.path.exists('./logs'):
     os.mkdir('./logs')
 
-logging.basicConfig(filename='./logs/rankie.log', level = logging.INFO, format='%(asctime)s: %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+if len(sys.argv) > 1 and 'DEBUG' in sys.argv[1].upper():
+    logging.basicConfig(filename='./logs/rankie.log', filemode='w', level=logging.INFO, format='%(asctime)s: %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+else:
+    logging.basicConfig(filename='./logs/rankie.log', filemode='w', level=logging.ERROR, format='%(asctime)s: %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
 # Setup config
 cfg = config(logging)
