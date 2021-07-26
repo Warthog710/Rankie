@@ -5,7 +5,7 @@ import os
 class config:
     def __init__(self, logging):
         self.__logging = logging
-        self.DEFAULT_PREFIX = '?'
+        self.__DEFAULT_PREFIX = '?'
 
         # Make sure the folder exists
         if not os.path.exists('./config'):
