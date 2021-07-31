@@ -5,7 +5,7 @@ import os
 class config:
     def __init__(self, logging):
         self.__logging = logging
-        self.__DEFAULT_PREFIX = '?'
+        self.DEFAULT_PREFIX = '?'
 
         # Make sure the folder exists
         if not os.path.exists('./config'):
@@ -79,10 +79,10 @@ class config:
         
         # Else, the server prefix has not been set, set to default
         else:
-            self.prefixes[str(message.guild.id)] = self.__DEFAULT_PREFIX
+            self.prefixes[str(message.guild.id)] = self.DEFAULT_PREFIX
 
             # Return default prefix
-            return self.__DEFAULT_PREFIX
+            return self.DEFAULT_PREFIX
 
     # Sets the prefix for a guild
     async def set_prefix(self, ctx, desired_prefix):
