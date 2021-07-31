@@ -134,9 +134,6 @@ async def help(ctx, *cmd):
 # This function runs on Rankie exit, saving all dictionaries
 @atexit.register
 def on_close():
-    # Dump config
-    cfg.dump_json(cfg.config, 'config')
-
     # Dump managed_channels
     cfg.dump_json(cfg.managed_channels, 'managed_channels')
 
@@ -160,4 +157,8 @@ rankie.loop.create_task(tsks.save_json())
 rankie.loop.create_task(tsks.change_status())
 
 # Run the bot!
-rankie.run(cfg.config['discordToken'])
+if cfg.get_token() != None:
+    rankie.run(cfg.get_token())
+else:
+    logging.error('Failed to find a discord token in the environment')
+    print('Failed to find a discord token in the environment.')

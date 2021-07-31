@@ -11,13 +11,8 @@ class config:
         if not os.path.exists('./config'):
             os.mkdir('./config')
 
-        # Load config
-        try:
-            with open('./config/config.json', 'r') as config:
-                self.config = json.loads(config.read())
-        except Exception as e:
-            self.__logging.error(f'./config/config.json was not found: {e}')
-            self.config = {}
+        # Load the discord token
+        self.__discord_token = os.environ.get('DISCORD_TOKEN')
 
         # Load prefixes
         try:
@@ -58,6 +53,10 @@ class config:
         except Exception as e:
             self.__logging.warning(f'./config/managed_channels.json was not found! managed_channels will be set to an empty dictionary: {e}')
             self.managed_channels = {}
+
+    # Returns the discord token read from the environment
+    def get_token(self):
+        return self.__discord_token
 
     # Take the name of a json file and dumps it to disk
     def dump_json(self, file, name):

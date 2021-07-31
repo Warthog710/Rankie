@@ -64,10 +64,6 @@ class tasks:
         await asyncio.sleep(wait_seconds)
 
         while not self.__rankie.is_closed():
-
-            # Dump config
-            self.__cfg.dump_json(self.__cfg.config, 'config')
-
             # Dump managed_channels
             self.__cfg.dump_json(self.__cfg.managed_channels, 'managed_channels')
 
