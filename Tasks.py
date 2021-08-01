@@ -54,14 +54,14 @@ class tasks:
             wait_seconds = (next_day - datetime.now()).seconds
             await asyncio.sleep(wait_seconds)
 
-    # Triggers daily to save all settings to disk
+    # Triggers hourly to save all settings to disk
     async def save_json(self):
         await self.__rankie.wait_until_ready()
 
-        # Sleep until the next day
-        next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
-        wait_seconds = (next_day - datetime.now()).seconds
-        await asyncio.sleep(wait_seconds)
+        # Sleep until the next hour
+        next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
+        wait_seconds = (next_hour - datetime.now()).seconds
+        await asyncio.sleep(wait_seconds + 1)
 
         while not self.__rankie.is_closed():
             # Dump managed_channels
@@ -79,10 +79,10 @@ class tasks:
             # Dump season
             self.__cfg.dump_json(self.__cfg.season, 'season')
             
-            # Sleep until the next day
-            next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
-            wait_seconds = (next_day - datetime.now()).seconds
-            await asyncio.sleep(wait_seconds)
+            # Sleep until the next hour
+            next_hour = (datetime.now() + timedelta(hours=1)).replace(microsecond=0, second=0, minute=0)
+            wait_seconds = (next_hour - datetime.now()).seconds
+            await asyncio.sleep(wait_seconds + 1)
 
     # Given a channel_id, delete all of its messaged except for those that have ID's in reserved messages
     async def __purge_channel(self, channel_id, reserved_messages):
