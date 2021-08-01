@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from Channel_Management import channel_management
 from Rank_Management import rank_management
+from Administrator import administrator
 from Config import config
 from Events import events
 from Tasks import tasks
@@ -37,6 +38,9 @@ chnl_mng = channel_management(logging, cfg)
 
 # Setup help
 hlp = help(cfg)
+
+# Setup admin
+admin = administrator(cfg, logging)
 
 # Create the bot
 rankie = commands.Bot(command_prefix=cfg.get_prefix, help_command=None, case_insensitive=True)
@@ -130,6 +134,12 @@ async def set_prefix(ctx, desired_prefix):
 @rankie.command(name='help', aliases=['h'])
 async def help(ctx, *cmd):
     await hlp.help_message(ctx, cmd)
+
+#? Owner command only, allows the download of the config files
+@rankie.command(name='getConfigFile', aliases=['gcf'])
+@commands.is_owner()
+async def get_config_file(ctx, name):
+    await admin.get_config_file(ctx, name)
 
 # This function runs on Rankie exit, saving all dictionaries
 @atexit.register
