@@ -12,7 +12,10 @@ class administrator:
         self.__dump_dictionaries()
         
         try:
-            await ctx.message.reply(file=discord.File(f'config/{name}.json'))
+            if 'log' in name:
+                await ctx.message.reply(file=discord.File(f'logs/rankie.log'))
+            else:
+                await ctx.message.reply(file=discord.File(f'config/{name}.json'))
         except Exception as e:
             self.__logging.error(f'Failed to deliver {name}.json for download due to error: {e}')
             await ctx.message.reply(f'Error: {e}')
