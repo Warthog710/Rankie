@@ -1,1 +1,1 @@
-worker: python Rankie.py
+worker: python Rankie.py DEBUG
