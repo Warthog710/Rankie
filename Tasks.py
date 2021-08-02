@@ -20,10 +20,10 @@ class tasks:
 
         while not self.__rankie.is_closed():
             if datetime.now().hour == 0:
-                self.__logging.info('Starting hourly management')
+                self.__logging.info('Starting hourly & daily management')
                 daily_management = True
             else:
-                self.__logging.info('Starting hourly & daily management')
+                self.__logging.info('Starting hourly management')
 
             # Get managed channels
             try:
