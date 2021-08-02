@@ -8,6 +8,7 @@ from discord.ext import commands
 from Channel_Management import channel_management
 from Rank_Management import rank_management
 from Administrator import administrator
+from Database import rankie_db
 from Config import config
 from Events import events
 from Tasks import tasks
@@ -24,29 +25,32 @@ if len(sys.argv) > 1 and 'DEBUG' in sys.argv[1].upper():
 else:
     logging.basicConfig(filename='./logs/rankie.log', filemode='w', level=logging.ERROR, format='%(asctime)s: %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
+# Setup db
+db = rankie_db()
+
 # Setup config
-cfg = config(logging)
+cfg = config(logging, db)
 
 # Setup Events
-evts = events(logging, cfg)
+evts = events(logging, cfg, db)
 
 # Setup rank_management
-rnk_mng = rank_management(logging, cfg)
+rnk_mng = rank_management(logging, cfg, db)
 
 # Setup channel management
-chnl_mng = channel_management(logging, cfg)
+chnl_mng = channel_management(logging, cfg, db)
 
 # Setup help
 hlp = help(cfg)
 
 # Setup admin
-admin = administrator(cfg, logging)
+admin = administrator(logging)
 
 # Create the bot
 rankie = commands.Bot(command_prefix=cfg.get_prefix, help_command=None, case_insensitive=True)
 
 # Setup tasks
-tsks = tasks(rankie, logging, cfg)
+tsks = tasks(rankie, logging, db)
 
 #? BOT EVENTS
 
@@ -136,35 +140,18 @@ async def help(ctx, *cmd):
     await hlp.help_message(ctx, cmd)
 
 #? Owner command only, allows the download of the config files
-@rankie.command(name='getConfigFile', aliases=['gcf'])
+@rankie.command(name='getLogFile', aliases=['glf'])
 @commands.is_owner()
-async def get_config_file(ctx, name):
-    await admin.get_config_file(ctx, name)
-
-# This function runs on Rankie exit, saving all dictionaries
-@atexit.register
-def on_close():
-    # Dump managed_channels
-    cfg.dump_json(cfg.managed_channels, 'managed_channels')
-
-    # Dump managed_guilds
-    cfg.dump_json(cfg.managed_guilds, 'managed_guilds')
-
-    # Dump prefixes
-    cfg.dump_json(cfg.prefixes, 'prefixes')
-
-    # Dump roles
-    cfg.dump_json(cfg.roles, 'roles')
-
-    # Dump season
-    cfg.dump_json(cfg.season, 'season')
-
-    logging.info('Successfully saved dictionaries on exit.')
+async def get_config_file(ctx):
+    await admin.get_log_file(ctx)
 
 # Setup repeated tasks
 rankie.loop.create_task(tsks.channel_management())
-rankie.loop.create_task(tsks.save_json())
 rankie.loop.create_task(tsks.change_status())
+
+@atexit.register
+def on_exit():
+    db.close_db()
 
 # Run the bot!
 if cfg.get_token() != None:

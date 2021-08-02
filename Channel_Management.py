@@ -1,9 +1,9 @@
 import discord
-
 class channel_management:
-    def __init__(self, logging, cfg):
+    def __init__(self, logging, cfg, db):
         self.__logging = logging
         self.__cfg = cfg
+        self.__db = db
 
     # Sets an existing channel to be managed by Rankie (a managed channel has its messages deleted periodically)
     async def set_managed_channel(self, ctx, channel_name, frequency):
@@ -26,17 +26,26 @@ class channel_management:
             return
 
         # Set the managed channel if it does not exist
-        if str(channel.id) in self.__cfg.managed_channels:
-            await ctx.message.reply(f'The channel __{channel_name}__ is already managed.')
+        try:
+            managed_channels = self.__db.get_managed_channels_for_guild(str(ctx.guild.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to set a managed channel: {e}')
+            await ctx.message.reply('Failed to set managed channel due to a database error. Please try again later.')
         else:
-            self.__cfg.managed_channels[str(channel.id)] = [frequency, []]
+            # Check if the channel is already being managed
+            for item in managed_channels:
+                if item[0] == str(channel.id):
+                    await ctx.message.reply(f'The channel __{channel_name}__ is already managed.')
+                    return
 
-            if str(ctx.guild.id) in self.__cfg.managed_guilds:
-                self.__cfg.managed_guilds[str(ctx.guild.id)].append(channel.id)
+            # The channel does not exist, set it
+            try:
+                self.__db.set_managed_channel_for_guild(str(ctx.guild.id), str(channel.id), frequency)
+            except Exception as e:
+                self.__logging.error(f'Failed to set managed channel: {e}')
+                await ctx.message.reply('Failed to set managed channel due to a database error. Please try again later.')
             else:
-                self.__cfg.managed_guilds[str(ctx.guild.id)] = [channel.id]
-
-            await ctx.message.reply(f'The channel __{channel_name}__ is now being managed by Rankie on a __{frequency}__ basis.')
+                await ctx.message.reply(f'The channel __{channel_name}__ is now being managed by Rankie on a __{frequency}__ basis.')
 
     # Removes an existing channel from management, the channel itself is not affected.
     async def delete_managed_channel(self, ctx, channel_name):
@@ -47,22 +56,29 @@ class channel_management:
             await ctx.message.reply(f'I couldn\'t find a channel with the name __{channel_name}__.')
             return
 
-        # Delete the managed channel from managed channels
-        if str(channel.id) in self.__cfg.managed_channels:
-            del self.__cfg.managed_channels[str(channel.id)]
+        try:
+            managed_channels = self.__db.get_managed_channels_for_guild(str(ctx.guild.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to delete managed channels: {e}')
+            await ctx.message.reply('Failed to delete a managed channel due to a database error. Please try again later.')
+        # Delete the managed channel from managed channels if it is being managed
         else:
-            await ctx.message.reply(f'The channel __{channel_name}__ is already not managed by Rankie.')
-            return
+            for item in managed_channels:
+                if str(channel.id) in item[0]:
+                    try:
+                        self.__db.del_managed_channel_from_guild(str(ctx.guild.id), str(channel.id))
 
-        # Delete the channel from the managed guild list
-        if str(ctx.guild.id) in self.__cfg.managed_guilds:
-            self.__cfg.managed_guilds[str(ctx.guild.id)].remove(channel.id)
+                        # Also delete all saved message related to that channel
+                        self.__db.del_all_saved_messages_from_channel(str(channel.id))
+                    except Exception as e:
+                        self.__logging.error(f'Failed to delete managed channels: {e}')
+                        await ctx.message.reply('Failed to delete a managed channel due to a database error. Please try again later.')
+                    else:
+                        await ctx.message.reply(f'The channel __{channel_name}__ will no longer be managed by Rankie.')
+                        return
 
-            # If no more entries exist for that guild, remove it.
-            if len(self.__cfg.managed_guilds[str(ctx.guild.id)]) <= 0:
-                del self.__cfg.managed_guilds[str(ctx.guild.id)]
-
-        await ctx.message.reply(f'The channel __{channel_name}__ will no longer be managed by Rankie.')
+            # Channel is not already managed
+            await ctx.message.reply(f'The channel __{channel_name}__ is not managed by Rankie.')
 
     # Sets a saved message in a managed channel, this message will not be deleted
     async def set_saved_message(self, ctx, channel_name, message_id):
@@ -86,16 +102,40 @@ class channel_management:
             return
 
         # Verify that Rankie is currently managing that channel
-        if str(channel.id) in self.__cfg.managed_channels:
-            # If the message is already managed, throw an error
-            if msg.id in self.__cfg.managed_channels[str(channel.id)][1]:
-                await ctx.message.reply(f'The message __{msg.id}__ is already being saved by Rankie.')
-            else:
-                self.__cfg.managed_channels[str(channel.id)][1].append(msg.id)
-                await ctx.message.reply(f'The message __{msg.id}__ in __{channel_name}__ will now be saved by Rankie.')
-
-        # Else, the channel is not currently managed...
+        try:
+            managed_channels = self.__db.get_managed_channels_for_guild(str(ctx.guild.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to set a saved message: {e}')
+            await ctx.message.reply('Failed to set a saved message due to a database error. Please try again later.')
         else:
+            for item in managed_channels:
+                if str(channel.id) == item[0]:
+                    # If the channel exists, set the saved message if it does not already exist
+                    try:
+                        saved_messages = self.__db.get_saved_messages_for_channel(str(item[0]))
+                    except Exception as e:
+                        self.__logging.error(f'Failed to set a saved message: {e}')
+                        await ctx.message.reply('Failed to set a saved message due to a database error. Please try again later.')
+                        return
+                    else:
+                        # Verify the saved message does not already exist
+                        for item in saved_messages:
+                            if str(message_id) in item[0]:
+                                await ctx.message.reply(f'The message __{msg.id}__ is already being saved by Rankie.')
+                                return
+
+                        # Set the saved message
+                        try:
+                            self.__db.set_saved_message_for_guild(str(channel.id), str(message_id))
+                        except Exception as e:
+                            self.__logging.error(f'Failed to set a saved message: {e}')
+                            await ctx.message.reply('Failed to set a saved message due to a database error. Please try again later.')
+                            return
+                        else:
+                            await ctx.message.reply(f'The message __{msg.id}__ in __{channel_name}__ will now be saved by Rankie.')
+                            return
+
+            # If the channel is not present, it is not currently being managed
             await ctx.message.reply(f'The channel {channel_name} is not currently managed by Rankie, please ask Rankie to manage this channel before setting any saved message(s).')
 
     # Removes a saved message from a managed channel, this message will no longer be saved when performing periodic deletion
@@ -112,33 +152,61 @@ class channel_management:
             await ctx.message.reply(f'The ID {message_id} is not valid.')
             return
 
-        # Verify the channel is being managed by Rankie
-        if str(channel.id) in self.__cfg.managed_channels:
-
-            # If the message is being saved
-            if int(message_id) in self.__cfg.managed_channels[str(channel.id)][1]:
-                self.__cfg.managed_channels[str(channel.id)][1].remove(int(message_id))
-                await ctx.message.reply(f'The message __{message_id}__ will NO longer be saved by Rankie.')
-            
-            else:
-                await ctx.message.reply(f'The message __{message_id}__ is already not being saved or the passed message ID is invalid.')
+        try:
+            managed_channels = self.__db.get_managed_channels_for_guild(str(ctx.guild.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to delete saved messages: {e}')
+            await ctx.message.reply('Failed to delete saved messages due to a database error. Please try again later.')
         else:
+            for item in managed_channels:
+                # The channel is being managed
+                if str(channel.id) == item[0]:
+                    try:
+                        saved_messages = self.__db.get_saved_messages_for_channel(str(channel.id))
+                    except Exception as e:
+                        self.__logging.error(f'Failed to delete saved messages: {e}')
+                        await ctx.message.reply('Failed to delete saved messages due to a database error. Please try again later.')
+                    else:
+                        for msg in saved_messages:
+                            # The message exists delete it
+                            if str(message_id) == msg[0]:
+                                try:
+                                    self.__db.del_saved_message_from_channel(str(channel.id), str(message_id))
+                                except Exception as e:
+                                    self.__logging.error(f'Failed to delete saved messages: {e}')
+                                    await ctx.message.reply('Failed to delete saved messages due to a database error. Please try again later.')
+                                    return
+                                else:
+                                    await ctx.message.reply(f'The message __{message_id}__ will NO longer be saved by Rankie.')
+                                    return
+
+                        # The message ID is not saved or does not exist
+                        await ctx.message.reply(f'The message __{message_id}__ is not being saved or the passed message ID is invalid.')
+                        return
+
+            # The channel is not currently being managed
             await ctx.message.reply(f'The channel __{channel_name}__ is not currently managed by Rankie, please ask Rankie to manage this channel before deleting any saved message(s).')
 
     # Prints a list of all of the currently managed channels to the requested channel
     async def list_managed_channels(self, ctx):
-        # Check if the guild has managed channels
-        if str(ctx.guild.id) in self.__cfg.managed_guilds:
-            msg = f'Managed channels:\n```{"Channel":<20}\t{"Frequency":<20}\n{"-------":<20}\t{"---------":<20}\n'
-
-            for channel_id in self.__cfg.managed_guilds[str(ctx.guild.id)]:
-                channel_name = str(discord.utils.get(ctx.message.guild.channels, id=channel_id))
-                msg += f'{channel_name:<20}\t{self.__cfg.managed_channels[str(channel_id)][0]:<10}\n'
-
-            msg += '```'
-            await ctx.message.reply(msg)
+        try:
+            managed_channels = self.__db.get_managed_channels_for_guild(str(ctx.guild.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to list managed channels: {e}')
+            await ctx.message.reply('Failed to list managed channels due to a database error. Please try again later.')
         else:
-            await ctx.message.reply(f'This server has no currently managed channels. Please ask **{self.__cfg.get_prefix(None, ctx.message)}help setManagedChannel** to learn how to set managed channels.')
+            # Check if the guild has managed channels
+            if len(managed_channels) > 0:
+                msg = f'Managed channels:\n```{"Channel":<20}\t{"Frequency":<20}\n{"-------":<20}\t{"---------":<20}\n'
+
+                for channel_id in managed_channels:
+                    channel_name = str(discord.utils.get(ctx.message.guild.channels, id=int(channel_id[0])))
+                    msg += f'{channel_name:<20}\t{channel_id[1]:<10}\n'
+
+                msg += '```'
+                await ctx.message.reply(msg)
+            else:
+                await ctx.message.reply(f'This server has no currently managed channels. Please ask **{self.__cfg.get_prefix(None, ctx.message)}help setManagedChannel** to learn how to set managed channels.')
 
     # Prints a list of all the currently saved messages in a managed channel to the requested channel
     async def list_managed_messages(self, ctx, channel_name):
@@ -149,16 +217,31 @@ class channel_management:
             await ctx.message.reply(f'I couldn\'t find a channel with the name __{channel_name}__.')
             return
 
-        # If the channel is being managed
-        if str(channel.id) in self.__cfg.managed_channels:
-            # If the length of saved messages is > 0
-            if len(self.__cfg.managed_channels[str(channel.id)][1]) > 0:
-                msg = f'Saved message(s) in __{channel_name}__:\n'
-                for msg_id in self.__cfg.managed_channels[str(channel.id)][1]:
-                    msg += f'``{msg_id}``\n'
-
-                await ctx.message.reply(msg)
-            else:
-                await ctx.message.reply(f'The channel __{channel_name}__ has no saved messages.')
+        try:
+            managed_channels = self.__db.get_managed_channels_for_guild(str(ctx.guild.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to list saved messages: {e}')
+            await ctx.message.reply('Failed to list saved messages due to a database error. Please try again later.')
         else:
+            for item in managed_channels:
+                # The channel is being managed
+                if str(channel.id) == item[0]:
+                    try:
+                        saved_messages = self.__db.get_saved_messages_for_channel(str(channel.id))
+                    except Exception as e:
+                        self.__logging.error(f'Failed to list saved messages: {e}')
+                        await ctx.message.reply('Failed to list saved messages due to a database error. Please try again later.')
+                    else:
+                        # If the length of saved message is > 0
+                        if len(saved_messages) > 0:
+                            msg = f'Saved message(s) in __{channel_name}__:\n'
+                            for msg_id in saved_messages:
+                                msg += f'``{msg_id[0]}``\n'
+                            await ctx.message.reply(msg)
+                            return
+                        else:
+                            await ctx.message.reply(f'The channel __{channel_name}__ has no saved messages.')
+                            return
+            
+            # The channel must not be managed by Rankie
             await ctx.message.reply(f'The channel __{channel_name}__ is not currently being managed by Rankie.')
