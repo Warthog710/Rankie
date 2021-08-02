@@ -1,10 +1,12 @@
+import logging
 import discord
 import aiohttp
 
 class rank_management:
-    def __init__(self, logging, cfg):
+    def __init__(self, logging, cfg, db):
         self.__logging = logging
         self.__cfg = cfg
+        self.__db = db
 
         #? The top cap for scores, A mythic+ score can never be greater than 99999 (hopefully)
         self.__max_score = 99999
@@ -51,9 +53,10 @@ class rank_management:
     # Determine if a valid IO range overlaps with an existing stored range for the guild
     # False = Overlap exists, True = No overlap
     def __detect_overlap(self, guild_id, IO_range, rank):
+        existing_roles = self.__db.get_roles(str(guild_id))
+
         # If roles exist for this guild
-        if str(guild_id) in self.__cfg.roles:
-            existing_roles = self.__cfg.roles[str(guild_id)]
+        if len(existing_roles) > 0:
             IO_range = self.__parse_IO_range(IO_range)
 
             # Determine if a name overlaps
@@ -81,11 +84,12 @@ class rank_management:
 
     # Returns a sorted list of ranks
     def __get_sorted_ranks(self, guild_id):
+        roles = self.__db.get_roles(str(guild_id))
+
         # If roles exist for that server
-        if str(guild_id) in self.__cfg.roles:
-            existing_roles = self.__cfg.roles[str(guild_id)]
-            existing_roles.sort(key=self.__sort_key)
-            return existing_roles
+        if len(roles) > 0:
+            roles.sort(key=self.__sort_key)
+            return roles
 
         # Return none if no roles exist for that server
         else:
@@ -100,12 +104,14 @@ class rank_management:
 
     async def __add_role(self, ctx, role, IO_range):
         # Add the role
-        if str(ctx.guild.id) in self.__cfg.roles:
-            self.__cfg.roles[str(ctx.guild.id)].append((role.id, IO_range))
+        try:
+            self.__db.set_roles(str(ctx.guild.id), str(role.id), str(IO_range))
+        # If an error occurs, log it
+        except Exception as e:
+            self.__logging.error(f'Failed to add a role: {e}')
+            await ctx.message.reply('Failed to add role due to a database error. Please try again later.')
         else:
-            self.__cfg.roles[str(ctx.guild.id)] = [(role.id, IO_range)]
-
-        await ctx.message.reply(f'Successfully created the rank {role} with an assigned IO range of {IO_range}.')   
+            await ctx.message.reply(f'Successfully created the rank {role} with an assigned IO range of {IO_range}.') 
 
     # Queries Raider.io for information related to a provided character
     async def __raider_io_query(self, ctx, region, realm, name):
@@ -141,7 +147,11 @@ class rank_management:
             return
 
         # Get a sorted list of ranks
-        sorted_ranks = self.__get_sorted_ranks(ctx.guild.id)
+        try:
+            sorted_ranks = self.__get_sorted_ranks(ctx.guild.id)
+        except Exception as e:
+            self.__logging.error(f'Failed to assign a rank: {e}')
+            await ctx.message.reply('Failed to assign a rank due to a database error. Please try again later.')
 
         # If no ranks exist
         if sorted_ranks == None:
@@ -155,34 +165,34 @@ class rank_management:
                 rank_id = item[0]
                 break
 
-        # If rank_id is none, they don't qualify for anything
-        if rank_id == None:
-            await ctx.message.reply('You do not currently qualify for any set ranks.')
-            return
-
         # Check if the user currently posseses that rank
-        if discord.utils.get(ctx.message.author.roles, id=rank_id) != None:
-            await ctx.message.reply('You already possess the correct rank.')
-            return
+        if rank_id != None:
+            if discord.utils.get(ctx.message.author.roles, id=int(rank_id)) != None:
+                await ctx.message.reply('You already possess the correct rank.')
+                return
 
         try:
             # Remove all current managed ranks from the user
             for item in sorted_ranks:
-                temp = discord.utils.get(ctx.message.author.roles, id=item[0])
+                temp = discord.utils.get(ctx.message.author.roles, id=int(item[0]))
 
                 if temp != None:
-                    await ctx.message.author.remove_roles(discord.utils.get(ctx.message.guild.roles, id=item[0]))
+                    await ctx.message.author.remove_roles(discord.utils.get(ctx.message.guild.roles, id=int(item[0])))
 
             # Add new rank
-            await ctx.message.author.add_roles(discord.utils.get(ctx.message.guild.roles, id=rank_id))
+            # If rank_id is none, they don't qualify for anything
+            if rank_id == None:
+                await ctx.message.reply('You do not currently qualify for any set ranks.')
+                return
+            else:
+                await ctx.message.author.add_roles(discord.utils.get(ctx.message.guild.roles, id=int(rank_id)))
         except Exception as e:
             await ctx.message.reply('Failed to assign the correct rank. This is likely due to a permissions issue. Or the rank no longer exists.')
             self.__logging.warning(f'Failed to delete/assign a new role: {e}')
             return    
 
-        assigned_rank = discord.utils.get(ctx.message.guild.roles, id=rank_id)
+        assigned_rank = discord.utils.get(ctx.message.guild.roles, id=int(rank_id))
         await ctx.message.reply(embed=self.__assign_rank_embed(name, realm, str(assigned_rank), str(dict(sorted_ranks)[rank_id]), profile_url, mythic_score, assigned_rank.color))
-        #await ctx.message.reply(f'You have been assigned {discord.utils.get(ctx.message.guild.roles, id=rank_id)}. This rank is for players with a mythic+ score of {dict(sorted_ranks)[rank_id]}.')
 
     # Returns a profile link for the user based on the passed character
     async def profile(self, ctx, cmd):
@@ -246,8 +256,14 @@ class rank_management:
     async def delete_rank(self, ctx, rank_name):
         rank_name = ' '.join(rank_name)
 
+        try:
+            roles = self.__db.get_roles(str(ctx.guild.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to delete a rank: {e}')
+            await ctx.message.reply('Failed to delete rank due to a database error. Please try again later.')
+
         # If the guild ID does not exist in roles, no ranks can be deleted since none have been sent
-        if not str(ctx.guild.id) in self.__cfg.roles:
+        if len(roles) <= 0:
             await ctx.message.reply(f'No ranks exist for this server. Before deleting a rank you must create it.')
             return
 
@@ -256,21 +272,32 @@ class rank_management:
         if rank == None:
             # ? It may be possible that the passed rank has been deleted manually from the guild, in this case NONE would be returned.
             # Iterate through set ranks, if one returns none remove it.
-            for rank_id in self.__cfg.roles[str(ctx.guild.id)]:
-                rank = discord.utils.get(ctx.message.guild.roles, id=rank_id[0])
+            for rank_id in roles:
+                rank = discord.utils.get(ctx.message.guild.roles, id=int(rank_id[0]))
 
                 # One of the saved ranks no longer exists, remove it and state the rank has been deleted.
                 if rank == None:
-                    self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != rank_id[0]]
-                    await ctx.message.reply(f'Successfully deleted the rank {rank_name}.')
-                    return
+                    try:
+                        self.__db.del_role(str(ctx.guild.id), str(rank_id[0]))
+                    except Exception as e:
+                        self.__logging.error(f'Failed to delete a rank: {e}')
+                        await ctx.message.reply('Failed to delete rank due to a database error. Please try again later.')
+                        return
+                    else:
+                        await ctx.message.reply(f'Successfully deleted the rank {rank_name}.')
+                        return
 
             # If no ranks saved return none, state so...        
             await ctx.message.reply('I could not find the passed rank on this server. Please verify the rank exists.')
             return
 
         # Delete the rank
-        self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != rank.id]
+        try:
+            self.__db.del_role(str(ctx.guild.id), str(rank.id))
+        except Exception as e:
+            self.__logging.error(f'Failed to delete a rank: {e}')
+            await ctx.message.reply('Failed to delete rank due to a database error. Please try again later.')
+            return
 
         # Attempt to delete the rank from the server
         try:
@@ -284,7 +311,13 @@ class rank_management:
 
     # Prints a message containing all the ranks for that server in the requested channel
     async def list_ranks(self, ctx):
-        sorted_ranks = self.__get_sorted_ranks(ctx.guild.id)
+        try:
+            sorted_ranks = self.__get_sorted_ranks(ctx.guild.id)
+        except Exception as e:
+            self.__logging.error(f'Failed to list ranks: {e}')
+            await ctx.message.reply('Failed to list ranks due to a database error. Please try again later.')
+            return
+
         if sorted_ranks != None:
             if len(sorted_ranks) > 0:
                 embed=discord.Embed(title='Currently set ranks:')
@@ -292,16 +325,19 @@ class rank_management:
                 rank_names = ''
                 score_ranges = ''
                 for item in sorted_ranks:
-                    name = str(discord.utils.get(ctx.message.guild.roles, id=item[0]))
+                    name = str(discord.utils.get(ctx.message.guild.roles, id=int(item[0])))
 
                     # If the name is None, don't print it and remove that rank
                     if name == 'None':
-                        self.__cfg.roles[str(ctx.guild.id)] = [x for x in self.__cfg.roles[str(ctx.guild.id)] if x[0] != item[0]]
+                        try:
+                            self.__db.del_role(str(ctx.guild.id), item[0])
 
-                        # If that was the last rank, return
-                        if len(self.__cfg.roles[str(ctx.guild.id)]) <= 0:
-                            await ctx.message.reply(f'I could not find any set ranks for this server. Please try setting a rank before using this command.')
-                            return
+                            # If that was the last rank, return
+                            if len(self.__db.get_roles(str(ctx.guild.id))) <= 0:
+                                await ctx.message.reply(f'I could not find any set ranks for this server. Please try setting a rank before using this command.')
+                                return
+                        except Exception as e:
+                            self.__logging.error(f'Failed to delete a none rank in list ranks: {e}')
 
                         continue
 
@@ -320,13 +356,17 @@ class rank_management:
     async def set_season(self, ctx, desired_season):
         desired_season = str(desired_season).lower()
 
-        if desired_season == 'current':
-            self.__cfg.season[str(ctx.guild.id)] = 'current'
-            await ctx.message.reply('The __current__ season will now be used for scores.')
+        try:
+            if desired_season == 'current':
+                self.__db.set_season(str(ctx.guild.id), 'current')
+                await ctx.message.reply('The __current__ season will now be used for scores.')
 
-        elif desired_season == 'previous':
-            self.__cfg.season[str(ctx.guild.id)] = 'previous'
-            await ctx.message.reply('The __previous__ season will now be used for scores.')
+            elif desired_season == 'previous':
+                self.__db.set_season(str(ctx.guild.id), 'previous')
+                await ctx.message.reply('The __previous__ season will now be used for scores.')
 
-        else:
-            await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{self.__cfg.get_prefix(None, ctx.message)}help setSeason**')
+            else:
+                await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{self.__cfg.get_prefix(None, ctx.message)}help setSeason**')
+        except Exception as e:
+            self.__logging.error(f'Failed to set season: {e}')
+            await ctx.message.reply('Failed to set season due to a database error. Please try again later.')
