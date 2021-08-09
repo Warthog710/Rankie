@@ -50,9 +50,9 @@ Roles can be customized on a per server basis. Only users with the ability to ma
  * ``?listSavedMessages <channel_name>``:
    * Lists all the saved messages for a managed channel on the server the command originates.
 #### Running Rankie:
-Rankie can be invited to your server by clicking on this link: <a href="https://discord.com/oauth2/authorize?client_id=858460009284894750&scope=bot&permissions=268509184">Rankie</a><br><br>
+Rankie can be invited to your server by clicking on this link: <a href="https://discord.com/oauth2/authorize?client_id=858460009284894750&scope=bot&permissions=268509184">Rankie</a><br>
 
-If you would like to personally host an instance of Rankie, please see release <a href="https://github.com/Warthog710/Rankie/releases/tag/1.3">v1.3</a>. This release does not require a dedicated PostgreSQL database. It only requires an environment variable called *DISCORD_TOKEN* to be set to your bot token. A token can be obtained through Discord's development portal.<br><br>
+If you would like to personally host an instance of Rankie, please see release <a href="https://github.com/Warthog710/Rankie/releases/tag/1.3">v1.3</a>. This release does not require a dedicated PostgreSQL database. It only requires an environment variable called *DISCORD_TOKEN* to be set to your bot token. A token can be obtained through Discord's development portal.<br>
 
 How to set an environment variable:<br>
 <a href="https://linuxize.com/post/how-to-set-and-list-environment-variables-in-linux/#persistent-environment-variables">Linux</a><br>
