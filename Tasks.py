@@ -62,7 +62,7 @@ class tasks:
 
         # Change the bot status while running every 24hrs and on start
         while not self.__rankie.is_closed():
-            await self.__rankie.change_presence(activity=Activity(type=ActivityType.watching, name='for queries...'), status=Status.online)
+            await self.__rankie.change_presence(activity=Activity(type=ActivityType.watching, name=f'over {len(self.__rankie.guilds)} servers...'), status=Status.online)
 
             # Sleep until the next day
             next_day = (datetime.now() + timedelta(days=1)).replace(microsecond=0, second=0, minute=0, hour=0)
