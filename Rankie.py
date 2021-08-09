@@ -43,11 +43,11 @@ chnl_mng = channel_management(logging, cfg, db)
 # Setup help
 hlp = help(cfg)
 
-# Setup admin
-admin = administrator(logging)
-
 # Create the bot
 rankie = commands.Bot(command_prefix=cfg.get_prefix, help_command=None, case_insensitive=True)
+
+# Setup admin
+admin = administrator(rankie, logging)
 
 # Setup tasks
 tsks = tasks(rankie, logging, db)
@@ -144,6 +144,12 @@ async def help(ctx, *cmd):
 @commands.is_owner()
 async def get_config_file(ctx):
     await admin.get_log_file(ctx)
+
+#? Owner command only, lists the servers Rankie is currently managing
+@rankie.command(name='getGuilds', aliases=['gg'])
+@commands.is_owner()
+async def get_guilds(ctx):
+    await admin.get_guilds(ctx)
 
 # Setup repeated tasks
 rankie.loop.create_task(tsks.channel_management())
