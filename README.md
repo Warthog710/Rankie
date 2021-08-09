@@ -52,10 +52,8 @@ Roles can be customized on a per server basis. Only users with the ability to ma
 #### Running Rankie:
 Rankie can be invited to your server by clicking on this link: <a href="https://discord.com/oauth2/authorize?client_id=858460009284894750&scope=bot&permissions=268509184">Rankie</a><br><br>
 
-If you would like to personally host an instance of Rankie, please see release <a href="https://github.com/Warthog710/Rankie/releases/tag/1.3">v1.3</a>. This release does not require a dedicated PostgreSQL database. It only requires a config.json file to present in a config folder with a Discord bot token. A token can be obtained through Discord's development portal.<br><br>
-The contents of the file should look like this:
-```
-{
-    "discordToken": "YOUR_TOKEN_HERE"
-}
-```
+If you would like to personally host an instance of Rankie, please see release <a href="https://github.com/Warthog710/Rankie/releases/tag/1.3">v1.3</a>. This release does not require a dedicated PostgreSQL database. It only requires an environment variable called *DISCORD_TOKEN* to be set to your bot token. A token can be obtained through Discord's development portal.<br><br>
+
+How to set an environment variable:
+<a href="https://linuxize.com/post/how-to-set-and-list-environment-variables-in-linux/#persistent-environment-variables">Linux</a>
+<a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4r/1.5.1/oread/creating-and-modifying-environment-variables-on-windows.html#GUID-DD6F9982-60D5-48F6-8270-A27EC53807D0">Windows</a>
