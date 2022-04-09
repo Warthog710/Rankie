@@ -45,6 +45,9 @@ class config:
         except Exception as e:
             self.__logging.error(f'Failed to get prefix: {e}')
 
+            #? BUGFIX: If we fail to get a prefix don't return none as this crashes the bot
+            return self.DEFAULT_PREFIX
+
     # Sets the prefix for a guild
     async def set_prefix(self, ctx, desired_prefix):
         # Accept only prefixes of a single char
