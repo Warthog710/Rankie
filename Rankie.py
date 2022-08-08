@@ -3,6 +3,7 @@ import sys
 import atexit
 import logging
 
+import discord
 from discord.ext import commands
 
 from Channel_Management import channel_management
@@ -13,8 +14,6 @@ from Config import config
 from Events import events
 from Tasks import tasks
 from Help import help
-
-#TODO: Change bot status once every 24 hrs to something funny
 
 # Setup logging
 if not os.path.exists('./logs'):
@@ -44,7 +43,9 @@ chnl_mng = channel_management(logging, cfg, db)
 hlp = help(cfg)
 
 # Create the bot
-rankie = commands.Bot(command_prefix=cfg.get_prefix, help_command=None, case_insensitive=True)
+intents = discord.Intents.default()
+intents.messages = True
+rankie = commands.Bot(command_prefix=cfg.get_prefix, intents=intents, help_command=None, case_insensitive=True)
 
 # Setup admin
 admin = administrator(rankie, logging)
