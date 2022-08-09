@@ -86,6 +86,11 @@ async def profile(ctx, *cmd):
 async def set_rank(ctx, IO_range, *rank_name):
     await rnk_mng.set_rank(ctx, IO_range, rank_name)
 
+@rankie.command(name='modifyRank', aliases=['mr'])
+@commands.has_permissions(manage_guild=True)
+async def manage_rank(ctx, IO_range, *rank_name):
+    await rnk_mng.modify_rank(ctx, IO_range, rank_name)
+
 @rankie.command(name='deleteRank', aliases=['dr'])
 @commands.has_permissions(manage_guild=True)
 async def delete_rank(ctx, *rank_name):

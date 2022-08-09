@@ -52,7 +52,7 @@ class rank_management:
 
     # Determine if a valid IO range overlaps with an existing stored range for the guild
     # False = Overlap exists, True = No overlap
-    def __detect_overlap(self, guild_id, IO_range, rank):
+    def __detect_overlap(self, guild_id, IO_range, rank, ignore_passed_rank=False):
         existing_roles = self.__db.get_roles(str(guild_id))
 
         # If roles exist for this guild
@@ -62,14 +62,20 @@ class rank_management:
             # Determine if a name overlaps
             if rank != None:
                 for role in existing_roles:
-                    if role[0] == rank.id:
-                        return False
+                    if ignore_passed_rank and role[0] == str(rank.id):
+                        continue
+                    else:
+                        if role[0] == str(rank.id):
+                            return False
 
             # Determine if a range overlaps
             for role in existing_roles:
-                saved_range = self.__parse_IO_range(role[1])
-                if max(IO_range) >= min(saved_range) and max(saved_range) >= min(IO_range):
-                    return False
+                if ignore_passed_rank and role[0] == str(rank.id):
+                    continue
+                else:
+                    saved_range = self.__parse_IO_range(role[1])
+                    if max(IO_range) >= min(saved_range) and max(saved_range) >= min(IO_range):
+                        return False
 
             # If no overlap was detected, the range is good.
             return True
@@ -241,7 +247,7 @@ class rank_management:
 
         # If check for dupe is false, the role does not exist
         if rank == None:
-            # Attemp to create the role
+            # Attempt to create the role
             try:
                 rank = await ctx.guild.create_role(name=rank_name)
             except Exception as e:
@@ -251,6 +257,46 @@ class rank_management:
 
         # Add the role
         await self.__add_role(ctx, rank, IO_range)
+
+    # Modifies an existing rank
+    async def modify_rank(self, ctx, IO_range, rank_name):
+        rank_name = ' '.join(rank_name)
+
+        # If the rank name is nothing, return an error
+        if len(rank_name) <= 0:
+            await ctx.message.reply('You must specify a rank to modify.')
+            return
+
+        # Verify the rank exists
+        rank = discord.utils.get(ctx.message.guild.roles, name=rank_name)
+
+        if rank == None:
+            await ctx.message.reply('The rank you specified does not currently exist.')
+            return
+
+        # Verify this IO range does not overlap with anything but itself
+        try:
+            if not self.__check_IO_range(IO_range):
+                await ctx.message.reply(f'The IO range {IO_range} is invalid.')
+                return
+
+            if not self.__detect_overlap(ctx.guild.id, IO_range, rank, ignore_passed_rank=True):
+                await ctx.message.reply(f'Cannot modify {rank} with {IO_range} as it collides with another rank.')
+                return
+        except Exception as e:
+            self.__logging.info(f'Failed to recognize the command for modify_rank. role={rank} IO_range={IO_range}: {e}')
+            await ctx.message.reply(f'I didn\'t recognize that command. Try asking me: **{self.__cfg.get_prefix(None, ctx.message)}help modifyRank**')
+            return
+
+        # Everything checks out... modify the rank
+        try:
+            self.__db.update_role(ctx.guild.id, rank.id, IO_range)
+        except Exception as e:
+            self.__logging.error(f'Failed to modify {rank}: {e}')
+            await ctx.message.reply(f'Failed to delete {rank} due to a database error. Please try again later.')
+            return
+
+        await ctx.message.reply(f'Successfully modifed the rank {rank} with an assigned IO range of {IO_range}.')
 
     # Deletes a managed rank from Rankie and the server
     async def delete_rank(self, ctx, rank_name):

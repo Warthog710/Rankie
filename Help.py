@@ -49,6 +49,15 @@ class help:
             usage = f'{prefix}setRank *IO_Range* *Rank Name*'
             aliases = f'{prefix}sr'
             example = f'{prefix}setRank 0-1000 Baby\n{prefix}setRank 1000+ Bigger Baby'
+            
+            # Send embed
+            await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))
+        elif ('MODIFYRANK' == cmd or 'MR' == cmd) and ctx.message.author.guild_permissions.manage_guild:
+            title = f'{prefix}modifyRank'
+            description = 'Modifies an existing rank with a new mythic+ score range.'
+            usage = f'{prefix}modifyRank *IO_Range* *Rank Name*'
+            aliases = f'{prefix}mr'
+            example = f'{prefix}modifyRank 0-500 Baby\n{prefix}modifyRank 500+ Bigger Baby'
 
             # Send embed
             await ctx.message.reply(embed=self.help_embed(title, description, usage, aliases, example))  
@@ -142,6 +151,7 @@ class help:
             # If the user has manage_guild permissions, give them info on these commands
             if ctx.message.author.guild_permissions.manage_guild:
                 msg += f'{prefix}setRank *IO_Range* *Rank Name*\n\n'
+                msg += f'{prefix}modifyRank *IO_Range* *Ranke Name*\n\n'
                 msg += f'{prefix}deleteRank *Rank Name*\n\n'
                 msg += f'{prefix}setPrefix *desired_prefix*\n\n'
                 msg += f'{prefix}setSeason *desired_season*\n\n'

@@ -37,6 +37,16 @@ class rankie_db:
         # Return result
         return result
 
+    def update_role(self, guild_id, rank_id, IO_range):
+        query = 'UPDATE roles SET range=%s WHERE guild_id=%s AND rank_id=%s;'
+
+        # Perform query
+        db_handle = self.__db.cursor()
+        db_handle.execute(query, (IO_range, str(guild_id), str(rank_id),))
+
+        # Close connection
+        db_handle.close()
+
     def get_season(self, guild_id):
         query = 'SELECT season FROM season WHERE guild_id=%s;'
 
