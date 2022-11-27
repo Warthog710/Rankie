@@ -23,6 +23,9 @@ Roles can be customized on a per server basis. Only users with the ability to ma
  * ``?setRank <IO_Range> [Rank Name]``: 
     * Adds a rank attached to a specified IO range. This rank will be created on the server if it does not exist. If the rank already exists the current existing rank will be used. The *IO_Range* passed can take on two forms, either some range ``0-500`` or infinite range ``500+``. Ranks cannot share the same name or overlap with existing ranks. Please note, the IO_Range passed is exclusive. This means a range of ``0-1000`` will max out at 999.
 
+ * ``?modifyRank <IO_Range> [Rank Name]``: 
+    * Modifies an existing ranks *IO_Range*. The rank to modify is specified by the rank name. If the rank does not exist, an error message will be displayed.
+
  * ``?deleteRank [Rank Name]``:
     * Deletes an existing rank. This rank will be removed from the server as well. 
 
