@@ -1,4 +1,4 @@
-import json
+import dotenv
 import os
 
 # This class holds all the json files and a few utility functions
@@ -8,8 +8,11 @@ class config:
         self.__db = db
         self.DEFAULT_PREFIX = '?'
 
-        # Load the discord token
-        self.__discord_token = os.environ.get('DISCORD_TOKEN')
+        # Load environment
+        settings = dotenv.dotenv_values('.env')
+
+        # Set values
+        self.__discord_token = settings['DISCORD_TOKEN']
 
     # Returns the discord token read from the environment
     def get_token(self):

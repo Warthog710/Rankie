@@ -1,9 +1,18 @@
-import os
-import psycopg2
+import dotenv
+from mysql.connector import connection
 
 class rankie_db:
     def __init__(self):
-        self.__db = psycopg2.connect(os.environ.get('DATABASE_URL'), sslmode='require')
+        # Load environment
+        settings = dotenv.dotenv_values('.env')
+
+        self.__db = connection.MySQLConnection(
+            user=settings['USERNAME'],
+            password=settings['PASSWORD'],
+            host=settings['IP'],
+            database=settings['NAME'],
+            port=settings['PORT']
+        )
 
     def get_prefix(self, guild_id):
         query = 'SELECT prefix FROM prefixes WHERE guild_id=%s;'
@@ -22,7 +31,7 @@ class rankie_db:
         return result
 
     def get_roles(self, guild_id):
-        query = 'SELECT rank_id, range FROM roles WHERE guild_id=%s;'
+        query = 'SELECT rank_id, score_range FROM roles WHERE guild_id=%s;'
 
         # Perform query
         db_handle = self.__db.cursor()
@@ -38,7 +47,7 @@ class rankie_db:
         return result
 
     def update_role(self, guild_id, rank_id, IO_range):
-        query = 'UPDATE roles SET range=%s WHERE guild_id=%s AND rank_id=%s;'
+        query = 'UPDATE roles SET score_range=%s WHERE guild_id=%s AND rank_id=%s;'
 
         # Perform query
         db_handle = self.__db.cursor()
@@ -133,7 +142,7 @@ class rankie_db:
 
     #? Dumb function, does not detect for dupes, this is done by Rankie before setting a role
     def set_roles(self, guild_id, rank_id, rank_range):
-        query = 'INSERT INTO roles (guild_id, rank_id, range) VALUES (%s, %s, %s);'
+        query = 'INSERT INTO roles (guild_id, rank_id, score_range) VALUES (%s, %s, %s);'
 
         # Perform query
         db_handle = self.__db.cursor()
